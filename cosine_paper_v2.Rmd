@@ -252,6 +252,231 @@ make_angles_max <- function(k=10000, os=5, ast=1, bst=2, stype="pairwise") {
   return(random_angles)
 }
 
+# Derived from make_angles_3 (sampling wo replacement)
+# Describe planar geometry of each pair of vectors (using SVD)
+# Sample uniformly from top quantile
+# The result is a bunch of anisotropic parallelograms
+# They are not evenly distributed in the column space or the row space
+make_angles_geom <- function(k=10, topile = 3) {
+  tok <- names(lefreq)[which(names(lefreq) %in% rownames(embm))]
+  tmax <- length(tok) / topile
+  sA <- sample(tok[1:tmax], k)
+  sB <- sample(tok[1:tmax], k)
+  
+  data.frame(aterm=sA, bterm=sB) %>%
+    rowwise() %>%
+    mutate(anorm = norm(embm[aterm,], "2"),
+           bnorm = norm(embm[bterm,], "2"),
+           afreq = lefreq[aterm],
+           bfreq = lefreq[bterm],
+           ab_cs = lsa::cosine(embm[aterm,], embm[bterm,])[1],
+           ab_ip = embm[aterm,] %*% embm[bterm,],
+           nprod = anorm * bnorm,
+           vsnorm = norm(embm[aterm,] + embm[bterm,], "2"),
+           vdnorm = norm(embm[aterm,] - embm[bterm,], "2"),
+           vsnorm.sc = norm(embm[aterm,]/anorm + embm[bterm,]/bnorm, "2"),
+           vdnorm.sc = norm(embm[aterm,]/anorm - embm[bterm,]/bnorm, "2"),
+           sv1 = svd(embm[c(aterm, bterm),])$d[1],
+           sv2 = svd(embm[c(aterm, bterm),])$d[2],
+           sv1.sc = svd(rbind(embm[aterm,]/anorm, embm[bterm,]/bnorm))$d[1],
+           sv2.sc = svd(rbind(embm[aterm,]/anorm, embm[bterm,]/bnorm))$d[2],
+           basis.ang = lsa::cosine(svd(embm[c(aterm, bterm),])$v[,1],
+                                svd(rbind(embm[aterm,]/anorm, embm[bterm,]/bnorm))$v[,1])) ->
+    random_angles
+  
+  return(random_angles)
+}
+
+test <- make_angles_geom(500, topile=10)
+test %>% 
+  group_by(aterm, bterm, anorm, bnorm, afreq, bfreq,
+           ab_cs, ab_ip, nprod,
+           sv1, sv2, sv1.sc, sv2.sc, basis.ang) %>% 
+  summarize(v1 = sv1^2 / (sv1^2 + sv2^2), 
+            v2 = sv2^2 / (sv1^2 + sv2^2), 
+            v1.sc = sv1.sc^2 / (sv1.sc^2 + sv2.sc^2), 
+            v2.sc = sv2.sc^2 / (sv1.sc^2 + sv2.sc^2),
+            normgap = v1 - v1.sc,
+            freqratio = max(log(afreq), log(bfreq))/min(log(afreq), log(bfreq)),
+            scaleratio = max(anorm, bnorm)/min(anorm, bnorm)) %>%
+  ungroup() -> 
+  test2
+
+# Some informative plots
+# Norm deflection score: abs(cos(theta)) between first principal axes of original and normed vector pairs
+#  This is the angle between the plane implied by the original vectors and the plane implied by the normalized vectors
+#  Note that these are **not** always the same subspace!
+#  This value lies approximately on the interval [cos(0), cos(pi/4)]
+# So they can be parallel or 
+# Scale ratio: max/min norm{A, B} (how uneven )
+# There is a clear relationship between the scale ratio and the norm deflection score wrt cos(A, B)
+# In general the normed vectors aren't in the same column space as the original vectors
+# Extremal cosine similarities must have a larger scale ratio when NDS < 1
+# This relationship is self-similar (graph always looks the same no matter where you set the NDS threshold)
+
+# Superimposing the positive and negative regions
+# You can see the relationship better this way
+test2 %>%
+  arrange(desc(abs(ab_cs))) %>%
+  ggplot(aes(y=scaleratio, x=abs(basis.ang), color=ab_cs)) +
+  geom_point(size=2) +
+  # geom_text(aes(label=ifelse(abs(ab_cs) > 0.18, paste0(aterm, "+", bterm), ""))) +
+  scale_color_viridis_c()
+
+test2 %>%
+  filter(abs(basis.ang) > 0.95) %>%
+  arrange(desc(abs(ab_cs))) %>%
+  ggplot(aes(y=scaleratio, x=abs(basis.ang), color=ab_cs)) +
+  geom_point(size=2) +
+  # geom_text(aes(label=ifelse(abs(ab_cs) > 0.18, paste0(aterm, "+", bterm), ""))) +
+  scale_color_viridis_c()
+
+# Show NDS on the inner product manifold
+# NDS describes Var[cos(A,B)|LPNW(A,B)]
+# Smaller NDS values constrain cos(A, B) toward zero
+test2 %>%
+  arrange(desc(abs(basis.ang))) %>%
+  ggplot(aes(x=nprod, color=abs(basis.ang), y=ab_cs)) +
+  geom_point(size=2) +
+  scale_color_viridis_c()
+
+# By component vector % variance explained
+# When the space is pointier/longer (?) the cosine similarities are more differentiated
+test2 %>% ggplot(aes(x=v1, y=v1.sc, color=ab_cs)) + geom_point() + scale_color_viridis_c()
+
+# Piecewise linear relationship between (scaled) norm of summed normalized vectors and spectral norm
+# Cosine similarity is perfectly linear in both quantities
+test %>% ggplot(aes(x=vsnorm.sc, y=sv1.sc, color=ab_cs)) + geom_point() + scale_color_viridis_c()
+
+# Cosine similarity differentiates across the manifold when not normalized
+test %>% ggplot(aes(x=vsnorm, y=sv1, color=ab_cs)) + geom_point() + scale_color_viridis_c()
+
+# Now start scaling this up to pairs of cosine similarities
+praxes <- function(i) {
+  t1 <- analogy$aterm[i]
+  t2 <- analogy$bterm[i]
+  t3 <- analogy$cterm[i]
+  t4 <- analogy$dterm[i]
+  
+  anorm = norm(embm[t1,], "2")
+  bnorm = norm(embm[t2,], "2")
+  cnorm = norm(embm[t3,], "2")
+  dnorm = norm(embm[t4,], "2")
+  
+  v1ab <- svd(rbind(embm[t1,]/anorm, embm[t2,]/bnorm))$v[,1]
+  v1cd <- svd(rbind(embm[t3,]/cnorm, embm[t4,]/dnorm))$v[,1]
+  
+  return(rbind(v1ab, v1cd))
+}
+
+# TODO: Tweaks to the below.
+# - Adjust term frequency sampling window
+# - What is abcd.sc.ang relative to mean CS?
+# - How does this relate to the single pair relationship?
+# - Use an SVD of the GloVe dimensions (should be full rank...)
+#    - I bet this relies heavily on the skewed dimensions.
+
+# xdim controls number of frequency-correlated dimensions to ignore (default zero)
+make_angles_geomquad <- function(k=10, xdim=NA) {
+  embms <- embm
+  embms <- ifelse(is.na(xdim), embms, embms[,-c(excord$dj[1:xdim])])
+  
+  tok <- as.character(rownames(embms))
+  sA <- sample(tok, k)
+  sB <- sample(tok, k)
+  sC <- sample(tok, k)
+  sD <- sample(tok, k)
+  
+  data.frame(aterm=sA, bterm=sB, cterm=sC, dterm=sD) %>%
+    rowwise() %>%
+    mutate(anorm = norm(embms[aterm,], "2"),
+           bnorm = norm(embms[bterm,], "2"),
+           cnorm = norm(embms[cterm,], "2"),
+           dnorm = norm(embms[dterm,], "2"),
+           afreq = lefreq[aterm],
+           bfreq = lefreq[bterm],
+           cfreq = lefreq[cterm],
+           dfreq = lefreq[dterm],
+           ab_cs = lsa::cosine(embms[aterm,], embms[bterm,])[1],
+           ab_ip = embms[aterm,] %*% embms[bterm,],
+           nprod = anorm * bnorm,
+           cd_cs = lsa::cosine(embms[cterm,], embms[dterm,])[1],
+           cd_ip = embms[cterm,] %*% embms[dterm,],
+           mprod = cnorm * dnorm,
+           cosmean = mean(c(ab_cs, cd_cs)),
+           abcd.sc.ang = lsa::cosine(svd(rbind(embms[aterm,]/anorm, embms[bterm,]/bnorm))$v[,1],
+                                     svd(rbind(embms[cterm,]/cnorm, embms[dterm,]/dnorm))$v[,1]),
+           abcd.sc.ang2 = lsa::cosine(svd(rbind(embms[aterm,], embms[bterm,]))$v[,1],
+                                      svd(rbind(embms[cterm,], embms[dterm,]))$v[,1])) ->
+    random_angles
+  
+  return(random_angles)
+}
+
+analogy <- make_angles_geomquad(500)
+anlist <- lapply(1:500, praxes)  # Get all column spaces
+
+# Angle between principal axes of normed vector pairs
+# The mean cosine similarity is biased by the first angle
+# The linear relationship tends to be pretty strong
+analogy %>%
+  ggplot(aes(x=abcd.sc.ang, y=cosmean)) +
+  geom_point(size=2) + 
+  geom_smooth(method="gam") + 
+  geom_hline(yintercept=mean(analogy2$ab_cs), linetype="dashed") +
+  scale_color_viridis_c() ->
+  a1
+analogy %>%
+  ggplot(aes(x=abcd.sc.ang2, y=cosmean)) +
+  geom_point(size=2) + 
+  geom_smooth(method="gam") + 
+  geom_hline(yintercept=mean(analogy2$ab_cs), linetype="dashed") +
+  scale_color_viridis_c() ->
+  a2
+grid.arrange(a1, a2, ncol=2)
+
+
+# Linear relationship between term frequency and each GloVe dimension
+# Consider a large uniformly random term sample
+freq_dims <- function(k=10) {
+  sA <- sample(rownames(embm), k)
+  return(data.frame(term=sA, lfreq=log(lefreq[sA]), embm[sA,]))
+}
+
+# Some of the dimensions have a strong frequency correlation
+# Let's drop these successively and see how things move around
+freq_dims(20000) %>% filter(!is.na(lfreq)) -> ex
+sapply(1:300, function(j) cor(ex$lfreq, ex[,paste0("d", j)])) -> excor
+excord <- data.frame(dj=1:300, fcor=excor, afcor=abs(excor)) %>% arrange(desc(afcor))
+
+analogy2 <- make_angles_geomquad(k=200, xdim=5)
+analogy3 <- make_angles_geomquad(200, 20)
+analogy4 <- make_angles_geomquad(200, 50)
+
+
+# Norm-frequency relationship
+# NOTE: Currently using out of sample estimate of term frequencies
+# The relationship is noisier than it would be if you had the exact frequencies for these embeddings
+# Unfortunately these are not readily available for pretrained embeddings
+tembm <- embm[names(lefreq)[!is.na(names(lefreq))],]  # Vectors for which we have frequencies
+get_fn <- function(i) {
+  term <- rownames(tembm)[i]
+  freq <- lefreq[term]
+  snorm <- norm(tembm[i,], "2")
+  return(data.frame(term, freq, snorm))
+}
+
+tfn <- do.call(rbind.data.frame, lapply(1:nrow(tembm), get_fn))
+
+# Plot the relationship
+# Note that the slope increases in magnitude when trimming outliers
+# Again, unfortunately using external term frequency data here
+tfn %>%
+  filter(freq > 1000) %>%
+  ggplot(aes(y=snorm^2, x=log(freq))) +
+  geom_point() +
+  geom_smooth(method="lm")
+
 # For this one, don't even use the embeddings
 # Just generate a bunch of random iid STN vectors
 # Generally, use same dimensions as prior ones

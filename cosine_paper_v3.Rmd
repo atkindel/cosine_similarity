@@ -1,0 +1,1525 @@
+---
+title: "Cosine similarity and frequency bias in word embeddings"
+author: "Alexander T. Kindel^[PhD Candidate, Department of Sociology, Princeton University. Contact: akindel@princeton.edu.]"
+abstract: |
+ |  The cosine of the coplanar angle between two *p*-dimensional vectors representing linguistic entities is widely used as a measure of correlation in statistical text analysis. In applications of word embedding models (e.g. word2vec, GloVe) to problems in the social sciences, a common methodology for cosine similarity-based comparison involves performing an arithmetic operation (e.g. the arithmetic mean; differences in means) over a pairwise correlation matrix. This approach results in measures that are biased in proportion to the underlying word frequency distribution. Frequency bias results from the fact that cosine similarity is a non-Euclidean transformation of the inner product space that twists rare word vector pairs in the direction of the focal vector. Frequency bias is heterogeneous over the word frequency distribution, implying that arithmetic means of cosine similarities can lead to overestimates or underestimates of the target quantity. A general conclusion is that cosine similarity is most useful for small-N local comparisons and top-N ranked comparisons, but sums of cosine similarities over large-N correlation matrices are not an appropriate basis for word embedding analysis.
+ | 
+ | **Keywords:** cosine similarity, frequency bias, word embeddings, measurement, arithmetic
+date: |
+  | 5 April 2022
+  | 
+  | 
+output: 
+  pdf_document: 
+    latex_engine: xelatex
+    keep_tex: TRUE
+    number_sections: true
+header-includes:
+  - \usepackage{setspace}
+  - \usepackage{enumitem}
+  - \usepackage{epigraph}
+  - \setlength\epigraphwidth{0.9\textwidth}
+  - \setlength\epigraphrule{0pt}
+  - \renewcommand{\textflush}{flushepinormal}
+  - \renewcommand{\epigraphflush}{center}
+  - \setlist{listparindent=\parindent, parsep=0pt}
+  - \doublespacing
+  - \setlength\parindent{24pt}
+  - \setlength{\parskip}{0.5mm}
+  - \usepackage[bottom]{footmisc}
+---
+
+```{r setup, echo=F, message=F}
+library(tidyverse)
+library(readtext)
+library(quanteda)
+library(quanteda.textstats)
+library(text2vec)
+library(word2vec)
+library(ggpubr)
+library(here)
+
+# Document settings
+theme_set(theme_bw())
+knitr::opts_chunk$set(warning=FALSE, message=FALSE, cache=TRUE, cache.lazy=FALSE)
+set.seed(2718281)
+```
+
+\pagebreak
+
+# Introduction
+
+Word embedding models are an increasingly popular tool for computational research on language use in the social sciences. Researchers seek to use word embeddings to measure entities widely theorized in the study of culture previously considered impervious to direct quantitative analysis, such as discourse, ideology, sentiment, cognition, emotion, bias, stereotype, association, identity, experience, subjectivity, and diversity (among many other concepts; see e.g. Kozlowski et al. 2019; Arseniev-Koehler & Foster 202X; Cochrane; Nelson; Lix; OTHERS). Yet little attention has been given to the applied statistical methodology of word embedding analysis, and in particular not much is known about the mathematical behavior of procedures linking specific research questions in the social sciences to specific summary quantities estimated from word embedding models. Despite an exciting and growing range of empirical applications, the methodological justification for interpreting quantities derived from embedding models in social science remains underspecified.
+
+This paper addresses this gap, and in the process identifies a problem in emerging methodological standards for applied word embedding analysis in the social sciences; namely, that \textbf{arithmetic aggregations of cosine similarities are biased by the underlying word frequency distribution}. Frequency bias emerges from the normalization weight 
+
+Cosine similarity became popular as a method of constructing ranked indices over collections of documents for the purposes of information retrieval (i.e. database search) and not for measuring qualitative features of texts. It is unclear whether these two research objectives share a logic, and there are reasons to doubt that they do. In particular, cosine similarity works very well for identifying observations that are most similar to a focal observation, but it is not clear that lower cosine values have a similar comparative rank interpretation (CITE). Cosine similarity-based indexing assumes that term similarities can be safely ignored beyond a certain threshold because they are not of practical interest (Salton XXXX; Levy, Goldberg \& Dagan 2014), whereas cosine similarity-based measurement makes the exact opposite assumption by taking arithmetic sums and means over sets of term pair similarity estimates across the cosine similarity distribution.
+
+A number of more minor misinterpretations are also widespread in the literature (e.g., notably, that cosine similarity is a distance metric; that cosine similarity is scale-independent, that embedding models are not based on word frequency information; or that the angle implied by cosine similarity is not exactly coplanar). This has led to further confusion surrounding the appropriate use and interpretation of the measure. Of particular concern is that it is statistically inappropriate to take the arithmetic mean of a set of cosine similarities. This quantity is a biased estimator of the location of the distribution, which is known to be non-normal when the sample size is small, when the component similarities are correlated, and/or when the population cosine similarity is nonzero (Fisher XXXX; Hotelling 1953; Dunn \& Clark 1971; Rodgers \& Nicewander 1980; Steiger 1980). The arithmetic mean sample cosine similarity is generally non-zero in the full embedding space and in random term subspaces, and it is (in part) a function of the word frequency distribution of the component vectors. Additionally, it is unclear whether there is a well-defined notion of population cosine similarity in natural language (Baayen 2001, ch. 10; Piantadosi 2014; CITE?). The extent to which it is justified to posit such a quantity depends on the selection of text; the sense in which words are similar depends on local and contextual factors that create the conditions under which language is used to do something (Wittgenstein 1953).
+
+\item \textbf{There is no clear justification for large-n vector arithmetic with embeddings, such as measures employing an arithmetic sum or mean of a set of word vectors.} This style of arithmetic pushes the vector spaces constructed by standard word embedding models far beyond the scope of the analogical objective used to evaluate them. “Classic” embedding models have not been tested on (nor optimized for) measuring similarity between large sets of terms. Optimistically, at most, they are well-tuned for comparing 3 to 1 or 2 to 2 terms (see Levy \& Goldberg 2014). The capacity of word embedding models to support this type of comparison is often cited as a motivation for using them in the social sciences; however, models trained in applied settings are rarely evaluated in this way, and many published embedding models do not actually perform well on canonical benchmark tasks (e.g. the MSR analogy dataset in Mikolov et al. 2013). The behavior of arithmetic summary quantities computed over embedding subspaces as the number of vectors increases beyond this point is unknown. Moreover, taking means of term vectors implies a set of weights on the component vectors. Such weights lack justification. In particular, it is unclear why each term in a sentence or fixed term list should have any particular weight relative to other terms (including uniform weights). Existing weighting schemes are not optimized for explanation. The interpretation of the mean vector of a set of terms as the meaning of a document (rather than embedding the document directly, say, as in Salton’s original application of the vector space model) requires further exploration.
+
+\item \textbf{Strategies for employing and validating embeddings rely on ad hoc evaluations of small, pre-selected term lists.} As noted above, embeddings are commonly justified in terms of their performance on stylized analogies involving a relatively small and disproportionately frequent set of underlying lexemes (Mikolov et al. 2013; Antoniak \& Mimno 2018; Kozlowski et al. 2019). Fixed term lists derived from prior work exacerbate this problem considerably. Widely used fixed term lists are sampled highly non-randomly from the term frequency distribution (i.e. the highly frequent end of the distribution). Alternative less-frequent terms with relevant meanings are typically excluded from analysis. Multiple fixed word lists imply subspaces with different word frequency distributions, and in the worst case these subspaces may lack common support entirely. A consequence of frequency bias is that it is trivial to construct justifiable term lists that give different answers given the same comparative methodology (Ethayarajh et al. 2018).
+
+\end{enumerate}
+
+I show below that these methodological issues result in measures that exhibit \textit{frequency bias}: they are affected by and can be predicted from the word frequency distribution implied by the corpus used to train the word embedding model. Three analytic practices in particular — the use of the cosine ratio as a measure of association, the arithmetic aggregation of pairwise cosine similarities over large sets of words, and the comparison of the subspaces spanned by these word sets to reference subspaces associated with fixed term lists selected by researchers — definitionally and non-randomly incorporate frequency information into the resulting quantity. A general conclusion is that findings in the social sciences developed from summary quantities of angles between word vectors should be interpreted with caution.
+
+The approach I take in this paper is modeled after the literature on regression diagnostics and residual analysis (Cook & Weisberg 1982; Belsley, Kuh & Welsch 1980). Cook and Weisberg write that diagnostic statistics serve two purposes: “they may result in the recognition of important phenomena that might otherwise have gone unnoticed” and they “can be used to suggest appropriate remedial action to the analysis of the model“ (p. 2). I focus on the former task; the latter task I leave for future work, although I comment on some potential directions at the end of the paper. My aim is to enable researchers in the social sciences to notice something about word embedding models that has been “hidden in plain sight” (Zerubavel 2015), and I hope that doing so will provoke further work on ways of measuring aggregate similarity over embedding vector subspaces.
+
+A few additional comments regarding the scope of the paper are in order. First, I do not systematically analyze the implications of different embedding approaches (model architecture, training objectives, hyperparameter tuning, etc.) for answering questions in the social sciences. In general, applied researchers use one of three “classic” word embedding algorithms, either GloVe (Pennington, Socher & Manning 2014) or one of the word2vec models (CBOW and SGNS; Mikolov et al. 2013), so I focus on these applications. Model choice may imply different notions of meaning that are important relative to social science applications. I discuss these issues only briefly and selectively; readers are encouraged to consult a more comprehensive introduction to semantic vector space models (e.g. Jurafsky & Martin 2021, ch. 6; Grimmer, Roberts & Stewart 2022, ch. 7-8; Turney & Pantel 2010) than is possible to provide in this paper.
+
+Second, I do not devote much attention to the correspondence between theories of meaning and the empirical properties of vector spaces (i.e. whether analogies can appropriately describe the previously mentioned theoretical concepts, and if so, which ones and to what degree). Readers are directed to work by Kozlowski and colleagues (2019) and Arseniev-Koehler (202X) for more detailed introductions to this important topic. My contribution focuses on the connection between theory and statistical evidence (Duncan 1984; Lundberg, Johnson & Stewart 2021). I identify problems around the interpretation, aggregation, and validation of measures computed from word embeddings to answer questions relating to these entities. Like prior work, I assume that operations in semantic vector spaces are reasonably analogous to the targeted cultural-associative processes and that standard embedding models are capable (in principle) of estimating vector spaces that adequately support this link between numerical and cognitive association. In short, I assume there is nothing objectionable in principle with the general idea of learning about linguistic meaning using word embeddings.
+
+Finally, I wish to emphasize that the findings reported in this paper are indebted to the willingness of a wide community of researchers to take risks and experiment with unfamiliar methods. Showing problems with the way that this has been done risks creating unduly negative judgments of the literature. Such judgments would be profoundly mistaken. The body of work discussed in this paper is the result of a slow, painstaking effort to adapt tools designed for making optimal predictions to the task of developing theoretical explanations (CITE Watts, Salganik). If our goal is to improve the practice of social measurement---a longstanding but somewhat neglected research priority in the social sciences (Duncan 1984)---we must first make mistakes.
+
+The remainder of the paper proceeds as follows. Section 2 discusses a number of key results in the computational linguistic theory of classic word embedding models that relate the word frequency distribution to the mathematical structure of the semantic vector space (i.e. the inner product and its corresponding norm). In section 3, I show how this dependence on the word frequency distribution distorts empirical analyses of word embedding models, based on reanalysis of three studies spanning areas of social research where word embedding models are becoming more popular (cultural sociology, management science, and political communication). Building on these results, section 4 discusses a few ways of thinking about the properties of cosine similarity as a method of discursive comparison in the social sciences, and in section 5 I introduce a set of diagnostic plots for frequency bias. I conclude by discussing future directions and challenges for applying word embeddings in the social sciences.
+
+# Cosine similarity and word frequency in the inner product space
+
+Cosine similarity is widely used across the social sciences as a measure of pairwise correlation between observations. The alignment of two $p$-dimensional vectors $A$ and $B$ is defined as the ratio of their inner product to the product of their norms:
+
+$$cos(\theta_{AB}) = \frac {\left<A, B\right>}{||A||\;||B||} = \frac{\sum_i a_ib_i}{\sqrt{\sum_i a_i^2} \sqrt{\sum_i b_i^2}}$$  
+The ratio describes the alignment of the two vectors: the amount that their directions are the same, different, or opposite. It is nominally bounded from -1 (pointing in opposite directions) to 0 (pointing in different/orthogonal directions) to 1 (pointing in the same direction), although in practice the distribution of cosine similarity is positively skewed in classic word embeddings (Mu & Viswanath 2018). 
+
+Arora, Li, Liang, Ma, and Risteski (2016) propose a generative model for semantic vector spaces that models word-word association 
+
+Before discussing the appearance of frequency bias in the literature, I briefly summarize how cosine similarity generates frequency bias in applications of word embeddings; section 4 returns to this topic after researchers are oriented to the issues associated with frequency bias in empirical settings. I rely in particular on the following result (Arora et al. 2016, Theorem 2.2). Consider a set of $p$-dimensional word vectors and let $w$ be any word in the corpus. Also consider a set of randomly generated and smoothly varying context positions in the semantic vector space $c \in C$. Then the following linear relationship holds:  
+$$
+\begin{aligned}
+\log p(w) &= \frac{||v_w||^2_2}{2p} - \text{LogSumExp}_C\left<v_w, c \right> + \epsilon \\
+\end{aligned}
+$$
+This equation says that the log word frequency for any given word is a linear function of its squared Euclidean norm scaled by the dimensionality of the vector space ($\frac{||v_w||^2_2}{2p}$) minus the approximate maximum distance^[For some set of scalars $X$, $\text{LogSumExp}(X)$ is a smooth approximation to $\max(X)$. I do not comment extensively on the generative loglinear model proposed by Arora and colleagues; my analysis focuses solely on the first term.] between this word vector and nearby contexts ($\text{LogSumExp}_c\left<v_w, c \right>$), plus an error term.
+
+An important implication of this result is that semantic vector norms and their corresponding word frequencies in the underlying corpus are strongly related to each other; the cosine similarity between any two word vectors is a function of a ratio of their frequencies (Ethayarajh, Duvenaud \& Hirst 2018):  
+$$
+\begin{aligned}
+\cos(w_A, w_B) &= \frac{\left<w_A, w_B\right>}{||w_A||\ ||w_B||} \\
+&\propto \frac{\left<w_A, w_B\right>}{\sqrt{\log p(w_A)} \ \sqrt{\log p(w_B)}} \\
+\end{aligned}
+$$  
+
+Let the function $\phi(w_A, w_B) := ||w_A||||w_B|| \propto\sqrt{\log p(w_A)}\sqrt{\log p(w_B)}$ denote the product of the Euclidean vector norms corresponding to our paired choice of words and its proportionality to the product of their root-log word frequencies. This quantity, which I refer to as the *local norm product weight*, will recur throughout the paper. It is a weight in the sense that $1/\phi(w_A, w_B)$ adjusts the inner product between $A$ and $B$; it is local in the sense that this adjustment is something that we are doing to the inner product space at the point defined by $A$ and $B$. The local norm product weight describes the sense in which the transformation from the original inner product space to the normalized inner product space performed when applying cosine similarity is dependent on the underlying word frequency distribution.
+
+The close relationship between cosine similarity and the word frequency distribution is paradoxical when we consider that the entire motivation for using cosine similarity in the first place is that it is typically understood to be a *solution* to the problem of scale dependence in vector space comparison. Widely-read introductions to word embeddings and vector semantics often frame cosine similarity as an alternative to the inner product that frees researchers from the frequency-dependence of the latter quantity. For example, Grimmer, Roberts and Stewart (2022) motivate a discussion of cosine similarity by remarking that "[a] potential problem with the inner product is that its result depends on the magnitude of the two vectors." Jurafksy and Martin (2021) similarly introduce cosine similarity by writing that "[m]ore frequent words have longer vectors, since they tend to co-occur with more words and have higher co-occurrence values with each of them. The raw dot product thus will be higher for frequent words. But this is a problem; we’d like a similarity metric that tells us how similar two words are regardless of their frequency." Turney and Pantel (2010) summarize the key advantage of cosine: "...the cosine of the angle between two vectors is the inner product of the vectors, after they have been normalized to unit length. ...Cosine captures the idea that the length of the vectors is irrelevant; the important thing is the angle between the vectors."^[The authors subsequently describe cosine as a "high-frequency sensitive measure" (p. 162).] Are these statements wrong?
+
+No, they are not wrong. In the context of two embedding vectors corresponding to a pair of words, the normalization implied by taking the cosine of two word vectors indeed enables us to estimate their degree of association without reference to their respective positions in the underlying word frequency distribution. However, *the way that cosine similarity accomplishes this transformation is not constant across the inner product space*. The root of frequency bias is an implicit methodological assumption that the local *within-pair* interpretation of cosine similarity (which is genuinely independent of scale-frequency by definition) extends to the global *between-pair* mathematical characteristics of arithmetic summaries of cosine similarities (which are decidedly dependent on the word frequency distribution). Over the next two sections, I show that this assumption is false. Arithmetic summaries of cosine similarities are biased by the relative position of the component vector word sets in the word frequency distribution associated with the underlying embedding model, and this frequency bias is attributable to the non-Euclidean geometry of the cosine decomposition.
+
+# Examples of frequency bias in the literature
+
+This section demonstrates frequency bias in three select applications of word embeddings to problems in the social sciences. The three studies were selected because (1) they construct an aggregate cosine similarity quantity from locally estimated classic word embeddings; (2) they span a wide range of disciplinary perspectives; and (3) they have publicly accessible replication materials. I wish to emphasize that frequency bias is a property of this general approach and is not unique to these papers or research areas. Indeed, these papers exemplify what *good* work with word embeddings in social science looks like.
+
+It is important for researchers to notice that frequency bias can lead to results that *simultaneously understate and overstate* the substantive degree of association in term use (Zhou, Ethayarajh \& Jurafsky 2021). It is not the case that estimates will generally go to zero when frequency bias is accounted for. Rather, the word frequency distribution creates *heterogeneous* groupings of similarities in the data that cannot be ignored by taking the mean. Comparative methodologies that do not account for this heterogeneity explicitly are merely averaging over it implicitly. Conversely, researchers can expect substantial improvements in the fit of models of discursive variation by accounting for frequency explicitly. I will discuss this in greater detail with respect to the empirical applications below.
+
+## “Leveraging the alignment between machine learning and intersectionality: Using word embeddings to measure intersectional experiences of the nineteenth century U.S. South.” (Nelson 2021, \textit{Poetics})
+
+Nelson (2021) presents a word embedding-based analysis of autobiographical narratives describing intersectional life experiences in the 19th century U.S. South. The study builds from a corpus of English "diaries, autobiographies, memoirs, travel accounts, and ex-slave narratives" as well as a number of "autobiographical narratives," "biographies," and "fictionalized" accounts by fugitive and former slaves. The word embedding analysis in the paper is built on a word2vec SGNS model with $p=100$ dimensions. The model employs a context window of size 5 and a minimum word frequency threshold of 10, indicating a preference for capturing paradigmatic semantic associations (Sch{\"u}tze & Pedersen 1999), and it is trained directly on the target corpus from scratch.
+
+The key quantitative measures in the paper are based on cosine similarity between composed vectors. A set of \textit{social category vectors} is constructed by averaging pairs of vectors corresponding to a small number of fixed terms in lists of "women/men/Black/white synonyms" (see "Appendix: List of Words Used to Create Four Averaged Social Category Vectors"). A set of \textit{social institution vectors} is constructed by identifying the 50 word vectors most closely aligned with the vectors \texttt{nation + state} (polity), \texttt{money} (economy), \texttt{culture} (culture), and \texttt{housework + children} (domestic). Figure 3 reports differences in mean cosine similarity between each pair of social category vectors with respect to each social institution vector, resulting in 24 total aggregate comparisons. After qualitative analysis, an additional set of cross-categorical differences in means is computed with respect to the vector \texttt{authority}, reported in Figure 5.
+
+The qualitative dimension of Nelson's methodology apart from the use of cosine similarity aggregation is relevant to the analysis of word frequencies. Three interlocking analytic moves are particularly interesting from the perspective of frequency bias. First, the analysis is not based solely on quantities derived from word embeddings; Nelson develops substantive insights through a dynamic engagement between model results and close reading of the underlying texts (also see Nelson 2020). Second, this portion of the analysis employs cosine similarity as an indexing measure to surface words closely related to terms of interest. Third, it is through the combination of these two approaches---more dense interpretive engagement with the text \textit{and} the use of the cosine ratio for information retrieval---that Nelson is able to observe rich and meaningful differences in diction across the texts included in the corpus. Notably, the analysis in this portion of the paper focuses a great deal on relative word frequencies; I return to this point at the end of the paper.
+
+The measures of "intersectional discursive space" in the paper are affected by frequency bias in ways that considerably affect their interpretation. In particular, the identity-pairwise differences in mean cosine similarity summarized in Figures 3 and 5 of the paper are skewed by the implicit omission of word frequency from each model. To show this, I compare each original estimated difference in means to a model including an additive term for the local norm product weight (LNPW) for each comparison:  
+$$
+\begin{aligned}
+\text{cosine similarity} &= \text{identity} + \epsilon\\
+\text{cosine similarity} &= \text{identity} + \text{LPNW} + \epsilon
+\end{aligned}
+$$
+
+Figure TODO displays the results of this analysis; the full results are reported in tabular form in Appendix TODO. Several aspects of this analysis are worth noting. First, every difference in means is substantially biased by the word frequency distribution. Adding the local norm product weight to the model increases fit considerably; the change in $R^2$ varies between 0.179 and 0.688. Second, because the variance of the cosine similarity is also dependent on the local norm product weight, the estimated standard error on the identity coefficient also increases across every comparison. Third, the direction of the bias is not always the same, and in particular it does not always move the point estimate of interest toward zero. Of the 30 difference-in-means estimates reported in the paper, 14 are attenuated, 11 are amplified, and 5 are unchanged in the LNPW-adjusted model. 
+
+```{r nelson_setup, echo=F, message=F, fig.height=8, out.width="\\textwidth", fig.align="center"}
+# Replication of "Measuring Intersectionality" (Nelson 2021 Poetics)
+# Describes frequency bias in the canonical SGNS model in the paper
+# See https://github.com/lknelson/measuring_intersectionality
+
+# Load canonical embedding
+nemb.d <- read_table2(here("data", "nelson2021", "word2vec_all_clean.txt"), col_names = FALSE, skip = 1)
+nemb.tok <- nemb.d$X1
+nemb <- nemb.d[,-1]  # 31362 x 100 embedding matrix
+rownames(nemb) <- nemb.tok
+sN <- nrow(nemb)
+sp <- ncol(nemb)
+
+# Fixed word lists
+fwl_male <- c("men", "man", "boy", "boys", "he", "him", "his", "himself")
+fwl_female <- c("women", "woman", "girl", "girls", "she", "her", "hers", "herself")
+fwl_white <- c("white", "caucasian", "anglosaxon")
+fwl_black <- c("black", "colored", "coloured", "negro", "negress", "negros", "afroamerican")
+
+# Load corpus; get lexicon
+n1 <- readtext(here("data", "nelson2021", "first-person-narratives-american-south", "data", "texts"))
+n2 <- readtext(here("data", "nelson2021", "na-slave-narratives", "data", "texts"))
+nc <- corpus(rbind(n1 %>% mutate(doc_id = paste0("a_", doc_id)),
+                   n2 %>% mutate(doc_id = paste0("b_", doc_id))))
+nt <- tokens(nc, remove_punct=T)  # Drop punctuation
+
+# Form DFM and term frequency matrix
+nd <- dfm_trim(dfm(nt), min_termfreq=10)
+nt_freq <- textstat_frequency(nd)
+
+# Also useful to have the norms laying around
+nt_freq %>%
+  filter(feature %in% nemb.tok) %>%
+  rowwise() %>%
+  mutate(snorm = norm(nemb[feature,], "2")) ->
+  tfn
+```
+
+```{r nelson_angles_setup, echo=F, message=F}
+# Function to plot squared norm as a function of log frequency
+# This is Fig. 2 in Arora et al. (2016)
+# Also see Eqn. 2.4: log p(w) ~ ||w||/2d - log Z (plus error),
+#  where Z = sum exp <w, c>, which is nearly to constant for any choice of context
+# This is the integral of the softmax function wrt the inner product space; PMI is a function
+#  of a Euclidean distance that has been discounted by the relative maximum distance of this
+#  point to everything else (log sum exp over the inner product space at this context) as well
+#  as the dimensionality of the inner product space
+aroraplot <- function(embm, termfreqs, vocab) {
+  termfreqs %>%
+    filter(feature %in% vocab) %>%
+    rowwise() %>%
+    mutate(snorm = norm(embm[feature,], "2"))%>%
+    ggplot(aes(x=sqrt(log(frequency)), y=snorm^2)) +
+    geom_point() +
+    geom_vline(xintercept=median(sqrt(log(termfreqs$frequency))), linetype="dashed", color="tomato") +
+    geom_smooth(method="gam")
+}
+
+# Now let's examine a sample of the inner product space created by this model
+# Function to plot inner product manifold given a set of angles/frequencies
+plot_angle_manifold <- function(r_angles) {
+  r_angles %>%
+    ungroup() %>%
+    mutate(lfr = log(a$frequency) + log(b$frequency)) %>%
+    arrange(lfr) %>%
+    ggplot(aes(x=nprod, y=ab_cs)) +
+    geom_point(aes(color=lfr, size=lfr), alpha=0.9) +
+    geom_hline(yintercept=mean(r_angles$ab_cs), linetype="dashed") +
+    scale_color_viridis_c() +
+    geom_smooth(method="lm") +
+    geom_smooth(color="tomato") +
+    theme(legend.position="bottom", legend.box="vertical", legend.margin=margin()) +
+    labs(x=latex2exp::TeX("$||A||*||B||$"), y=latex2exp::TeX("$cos(A, B)$"),
+         color=latex2exp::TeX("$log(p(A)) * log(p(B))$"), size=latex2exp::TeX("$log(p(A)) * log(p(B))$"))
+}
+
+# Look at a uniformly random (wrt. term frequency) sample of term pairs
+# Default is 5k term pairs
+make_angles <- function(embmat, k=5000) {
+  sm <- sample(tfn$feature, k*2)
+  sA <- sm[1:k]
+  sB <- sm[(k+1):(k*2)]
+  data.frame(aterm=sA, bterm=sB) %>%
+    rowwise() %>%
+    mutate(anorm = norm(embmat[aterm,], "2"),
+           bnorm = norm(embmat[bterm,], "2"),
+           a = tfn[which(tfn$feature == aterm),"frequency"],
+           b = tfn[which(tfn$feature == bterm),"frequency"],
+           ab_cs = lsa::cosine(as.numeric(embmat[aterm,]), as.numeric(embmat[bterm,]))[1],
+           ab_ip = as.numeric(embmat[aterm,]) %*% as.numeric(embmat[bterm,]),
+           ppmcc = cor(as.numeric(embmat[aterm,]), as.numeric(embmat[bterm,])),
+           nprod = anorm * bnorm,
+           aZ = word2vec_similarity(as.numeric(embmat[aterm,]),
+                                    as.matrix(embmat[-which(rownames(embmat == aterm)),]),
+                                              top_n=1, type="cosine") %$% similarity * nprod,
+           bZ = word2vec_similarity(as.numeric(embmat[bterm,]),
+                                    as.matrix(embmat[-which(rownames(embmat == bterm)),]),
+                                              top_n=1, type="cosine") %$% similarity * nprod,
+           gK = -1 * (1 + nprod^2 + ab_cs^2)^-2) ->
+    random_angles
+  
+  return(random_angles)
+}
+
+# Alternatively, use the random angle set and color by cosine similarity
+lnpw_plot <- function(r_angles) {
+  r_angles %>%
+    arrange(ab_cs) %>%
+    ggplot(aes(x=sqrt(log(a$frequency))*sqrt(log(b$frequency)), y=nprod, color=ab_cs)) +
+    geom_point() +
+    geom_smooth() +
+    scale_color_viridis_c() +
+    theme(legend.position = "bottom")
+}
+
+# Get term pair sample
+ra_nemb <- make_angles(nemb)
+```
+
+```{r nelson_aroraplot, echo=F, message=F, fig.height=8.5, out.width="0.9\\textwidth", fig.align="center", fig.cap="Left panel: Squared Euclidean norm of embedding vectors against root-log frequency for all words in the underlying corpus (see Arora et al. 2016); median log frequency indicated by red dashed line. Right panel: Local norm product weight against product of root-log frequencies for all word pairs in the corpus; uniformly random sample of 5000 word vectors without replacement. Note inflection point and changes in variance over the trend in both panels."}
+# Squared vector norm is proportional to sqrt log term frequency
+# The relationship in this model is a little weird for the high frequency terms
+# It should be approximately curvilinear but it's quadratic (???)
+aroraplot(nemb, nt_freq, nemb.tok) -> fbp1
+
+# Similarly, local norm product weight is proportional to product of sqrt log term frequency
+lnpw_plot(ra_nemb) -> fbp2
+
+# Plot these side-by-side
+ggarrange(fbp1, fbp2, ncol=1)
+```
+
+```{r nelson_anglemanifold, echo=F, message=F, fig.height=8, out.width="\\textwidth", fig.align="center", fig.cap="Distribution of cosine similarity against local norm product weight from uniformly random sample of 5000 words from embedding vocabulary. Color indicates product of log frequencies for this word pair. The mean and variance of the cosine similarity distribution changes as the relative scale increases."}
+plot_angle_manifold(ra_nemb)
+```
+
+```{r nelson_cosfreq, echo=F, message=F, fig.height=6, out.width="0.8\\textwidth", fig.align="center", fig.cap="Distribution of cosine similarities by product of log frequencies of component terms. Linear trend in blue; generalized additive fit in red. Cosine similarity is inflated on average when frequency is low, and deflated on average when frequency is high."}
+# Plot cosine simlarity against the log frequency ratio
+# I think this one kinda looks like a peacock.
+# If you split by LPNW quantiles, you can see the relationship get flat (or close to flat)
+ra_nemb %>%
+  ungroup() %>%
+  mutate(lfr = sqrt(log(a$frequency)) * sqrt(log(b$frequency))) %>%
+  arrange(nprod) %>%
+  ggplot(aes(x=lfr, y=ab_cs, color=nprod)) +
+  geom_point(size=3) +
+  geom_hline(yintercept=mean(ra_nemb$ab_cs), linetype="dashed") +
+  geom_smooth(method="lm") +
+  geom_smooth(color="tomato") +
+  scale_color_viridis_c()
+```
+
+```{r nelson_cosfreq_ilesplit, echo=F, message=F, fig.height=8, out.width="\\textwidth", fig.align="center", fig.cap="Decreasing linear frequency bias in cosine similarity by local norm product weight quantiles; note partial overlap in product of log frequencies."}
+ra_nemb %>%
+  ungroup() %>%
+  mutate(lfr = log(a$frequency) * log(b$frequency),
+         ile = ntile(nprod, 9)) %>%
+  arrange(nprod) %>%
+  ggplot(aes(x=lfr, y=ab_cs, color=nprod)) +
+  geom_point(size=3) +
+  geom_smooth(method=MASS::rlm, method.args=list(method="MM"), color="tomato") +
+  geom_hline(yintercept=mean(ra_nemb$ab_cs), linetype="dashed") +
+  scale_color_viridis_c() +
+  facet_wrap(~ile) +
+  theme(legend.position="bottom")
+```
+
+```{r nelson_cosfreq_supp, echo=F, message=F, fig.height=8, out.width="\\textwidth", fig.align="center", fig.cap="Cosine-frequency plot split by component frequencies, n=5000 random words in embedding vocabulary."}
+# Plot uniformly random cosine similarity sample against log frequency of one component term
+# This isn't as informative as the other plots but it's good to know it's not super asymmetric
+# it's way more interesting to look at when the A and B sets are highly frequency imbalanced
+ra_nemb %>%
+  filter(!is.na(a$frequency) & !is.na(b$frequency)) %>%  # Missing term frequency data
+  arrange(b$frequency) %>%
+  ggplot(aes(x=log(a$frequency), y=ab_cs, color=log(b$frequency))) +
+  geom_point() +
+  geom_hline(yintercept=mean(ra_nemb$ab_cs), linetype="dashed") +
+  geom_smooth(method="lm") +
+  geom_smooth(color="tomato") +
+  scale_color_viridis_c() +
+  theme(legend.position="bottom") ->
+  fp1
+ra_nemb %>%
+  filter(!is.na(a$frequency) & !is.na(b$frequency)) %>%  # Missing term frequency data
+  arrange(a$frequency) %>%
+  ggplot(aes(x=log(b$frequency), y=ab_cs, color=log(a$frequency))) +
+  geom_point() +
+  geom_hline(yintercept=mean(ra_nemb$ab_cs), linetype="dashed") +
+  geom_smooth(method="lm") +
+  geom_smooth(color="tomato") +
+  scale_color_viridis_c() +
+  theme(legend.position="bottom") ->
+  fp2
+ggarrange(fp1, fp2, ncol=2, common.legend = T, legend="bottom")
+```
+
+```{r nelson_focal_composite, echo=F, message=F, fig.height=8, out.width="\\textwidth", fig.align="center", fig.cap="Cosine-frequency plot, social identity mean vectors. Color indicates norm of context word; note increasing vector lengths by word frequency."}
+# The analysis is based on arithmetic composites across the term lists
+# Let's inspect these directly
+# First, modify above functions to work on a composite vector we provide
+view_from_composite <- function(embmat, fv) {
+  if(is.data.frame(embmat)) {
+    embmat <- as.matrix(embmat)
+  }
+  
+  dotp <- word2vec_similarity(fv, embmat, top_n=nrow(embmat))
+
+  word2vec_similarity(fv, embmat, top_n=nrow(embmat), type="cosine") %>%
+    mutate(angle = acos(similarity) * (180/pi)) %>%
+    left_join(tfn %>% as.data.frame() %>% select(feature, frequency, snorm), by=c("term2"="feature")) %>%
+    mutate(nprod = snorm * norm(fv, "2"),
+           inner_product = similarity * nprod)->
+    test_1term
+  return(test_1term)
+}
+
+plot_composite_view <- function(csims, fv_label, topsel=NA, mv=F) {
+  spflab <- ifelse(mv,
+                   "$\\textit{%s}$ (mean vector)",
+                   "$\\textit{%s}$")
+  csims %>%
+    ggplot(aes(x=log(frequency), y=similarity, color=snorm)) +
+    geom_point() +
+    geom_vline(xintercept=median(log(csims$frequency), na.rm=T), linetype="dotted", alpha=0.8) +
+    geom_hline(yintercept=mean(csims$similarity, na.rm=T), linetype="dashed", alpha=0.8) +
+    geom_smooth(method="gam", color="tomato") +
+    geom_smooth(method="lm") +
+    scale_color_viridis_c() +
+    ggtitle(latex2exp::TeX(sprintf(spflab, fv_label))) +
+    labs(x="Word frequency (log scale)",
+         y="Cosine similarity",
+         color=latex2exp::TeX("$||w_j||$")) -> plt
+  if(is.na(topsel)) {
+    return(plt)
+  } else {
+    return(plt + geom_hline(yintercept=csims[topsel,"similarity"], linetype="dotted", color="violetred2"))
+  }
+}
+
+# For two fixed word lists, get mean of all paired sum vectors
+# See Nelson (2021) p. 5
+compute_fwl_meanvector <- function(embmat, fwl1, fwl2) {
+  expand.grid(fwl1, fwl2) %>%
+    rowwise() %>%
+    summarize(embmat[which(rownames(embmat) == Var1),] + embmat[which(rownames(embmat) == Var2),]) %>%
+    colMeans() ->
+    mv_fwl
+  return(mv_fwl)
+}
+
+# All of the mean vectors exhibit frequency bias as well
+mv_male_black <- compute_fwl_meanvector(nemb, fwl_male, fwl_black)
+mv_female_black <- compute_fwl_meanvector(nemb, fwl_female, fwl_black)
+mv_male_white <- compute_fwl_meanvector(nemb, fwl_male, fwl_white)
+mv_female_white <- compute_fwl_meanvector(nemb, fwl_female, fwl_white)
+ggarrange(plot_composite_view(view_from_composite(nemb, mv_male_black), "male + black", mv=T),
+          plot_composite_view(view_from_composite(nemb, mv_female_black), "female + black", mv=T),
+          plot_composite_view(view_from_composite(nemb, mv_male_white), "male + white", mv=T),
+          plot_composite_view(view_from_composite(nemb, mv_female_white), "female + white", mv=T),
+          ncol=2, nrow=2, common.legend=T, legend = "bottom")
+```
+
+```{r nelson_frequencycomp_institutions, echo=F, message=F, fig.height=8, out.width="\\textwidth", fig.align="center", fig.cap="Cosine-frequency plot, social institution inducing vectors. Color indicates norm of context word; note increasing vector lengths by word frequency."}
+# It's also useful to look at what we're averaging over
+# The biases on each of the component 2sum vectors vary
+# Not shown in the paper
+# plot_composite_view(view_from_composite(nemb, as.matrix(nemb["man",] + nemb["black",])), "man + black")
+# plot_composite_view(view_from_composite(nemb, as.matrix(nemb["his",] + nemb["black",])), "his + black")
+# plot_composite_view(view_from_composite(nemb, as.matrix(nemb["herself",] + nemb["colored",])), "herself + colored")
+# plot_composite_view(view_from_composite(nemb, as.matrix(nemb["she",] + nemb["white",])), "she + white")
+
+# Also look at the "social institution" vectors
+# Top 50 terms thresholds, respectively: 0.638, 0.622, 0.665, 0.665
+v_polity <- as.matrix(nemb["nation",] + nemb["state",])
+v_economy <- as.matrix(nemb["money",])
+v_culture <- as.matrix(nemb["culture",])
+v_domestic <- as.matrix(nemb["housework",] + nemb["children",])
+v_authority <- as.matrix(nemb["authority",])
+ggarrange(plot_composite_view(view_from_composite(nemb, v_polity), "nation + state", topsel = 50),
+          plot_composite_view(view_from_composite(nemb, v_economy), "money", topsel = 50),
+          plot_composite_view(view_from_composite(nemb, v_culture), "culture", topsel = 50),
+          plot_composite_view(view_from_composite(nemb, v_domestic), "housework + children", topsel = 50),
+          ncol=2, nrow=2, common.legend=T, legend = "bottom")
+```
+
+```{r nelson_authority_mv, echo=F, message=F, fig.height=4, out.width="\\textwidth", fig.align="center", fig.cap="Cosine-frequency plot, \\texttt{authority} vector. Color indicates norm of context word; note increasing vector lengths by word frequency."}
+plot_composite_view(view_from_composite(nemb, v_authority), "authority", topsel = 50)
+```
+
+```{r nelson_diffinmeans, echo=F, message=F, results="asis"}
+# How frequency bias affects regression: omitted variable bias in Fig. 3
+# Predict difference in means from log term frequency
+# Each DiM is a linear regression of the form cos(identity vector, institution vector) ~ identity category
+# The frequency bias can be captured by adding various frequency measures to the design matrix
+
+# Construct all 24 comparisons shown in Fig. 3
+# Also include the "authority" comparison in Fig. 5
+k <- 200
+polity_vmat <- view_from_composite(nemb, v_polity) %>%
+  filter(!term2 %in% c("nation", "state") & !is.na(frequency)) %>%
+  slice_head(n=k)
+polity_words <- polity_vmat$term2
+polity_snorm <- polity_vmat$snorm
+polity_vmat <- as.matrix(nemb[polity_vmat$term2,])
+economy_vmat <- view_from_composite(nemb, v_economy) %>%
+  filter(!term2 %in% c("money") & !is.na(frequency)) %>%
+  slice_head(n=k)
+economy_words <- economy_vmat$term2
+economy_snorm <- economy_vmat$snorm
+economy_vmat <- as.matrix(nemb[economy_vmat$term2,])
+culture_vmat <- view_from_composite(nemb, v_culture) %>%
+  filter(!term2 %in% c("culture") & !is.na(frequency)) %>%
+  slice_head(n=k)
+culture_words <- culture_vmat$term2
+culture_snorm <- culture_vmat$snorm
+culture_vmat <- as.matrix(nemb[culture_vmat$term2,])
+domestic_vmat <- view_from_composite(nemb, v_domestic) %>%
+  filter(!term2 %in% c("housework", "children") & !is.na(frequency)) %>%
+  slice_head(n=k)
+domestic_words <- domestic_vmat$term2
+domestic_snorm <- domestic_vmat$snorm
+domestic_vmat <- as.matrix(nemb[domestic_vmat$term2,])
+authority_vmat <- view_from_composite(nemb, v_authority) %>%
+  filter(!term2 %in% c("authority") & !is.na(frequency)) %>%
+  slice_head(n=k)
+authority_words <- authority_vmat$term2
+authority_snorm <- authority_vmat$snorm
+authority_vmat <- as.matrix(nemb[authority_vmat$term2,])
+
+cs.male_black_polity <- sapply(1:nrow(polity_vmat), function(j) lsa::cosine(polity_vmat[j,], mv_male_black))
+cs.male_black_economy <- sapply(1:nrow(economy_vmat), function(j) lsa::cosine(economy_vmat[j,], mv_male_black))
+cs.male_black_culture <- sapply(1:nrow(culture_vmat), function(j) lsa::cosine(culture_vmat[j,], mv_male_black))
+cs.male_black_domestic <- sapply(1:nrow(domestic_vmat), function(j) lsa::cosine(domestic_vmat[j,], mv_male_black))
+cs.male_black_authority <- sapply(1:nrow(authority_vmat), function(j) lsa::cosine(authority_vmat[j,], mv_male_black))
+
+cs.female_black_polity <- sapply(1:nrow(polity_vmat), function(j) lsa::cosine(polity_vmat[j,], mv_female_black))
+cs.female_black_economy <- sapply(1:nrow(economy_vmat), function(j) lsa::cosine(economy_vmat[j,], mv_female_black))
+cs.female_black_culture <- sapply(1:nrow(culture_vmat), function(j) lsa::cosine(culture_vmat[j,], mv_female_black))
+cs.female_black_domestic <- sapply(1:nrow(domestic_vmat), function(j) lsa::cosine(domestic_vmat[j,], mv_female_black))
+cs.female_black_authority <- sapply(1:nrow(authority_vmat), function(j) lsa::cosine(authority_vmat[j,], mv_female_black))
+
+cs.male_white_polity <- sapply(1:nrow(polity_vmat), function(j) lsa::cosine(polity_vmat[j,], mv_male_white))
+cs.male_white_economy <- sapply(1:nrow(economy_vmat), function(j) lsa::cosine(economy_vmat[j,], mv_male_white))
+cs.male_white_culture <- sapply(1:nrow(culture_vmat), function(j) lsa::cosine(culture_vmat[j,], mv_male_white))
+cs.male_white_domestic <- sapply(1:nrow(domestic_vmat), function(j) lsa::cosine(domestic_vmat[j,], mv_male_white))
+cs.male_white_authority <- sapply(1:nrow(authority_vmat), function(j) lsa::cosine(authority_vmat[j,], mv_male_white))
+
+cs.female_white_polity <- sapply(1:nrow(polity_vmat), function(j) lsa::cosine(polity_vmat[j,], mv_female_white))
+cs.female_white_economy <- sapply(1:nrow(economy_vmat), function(j) lsa::cosine(economy_vmat[j,], mv_female_white))
+cs.female_white_culture <- sapply(1:nrow(culture_vmat), function(j) lsa::cosine(culture_vmat[j,], mv_female_white))
+cs.female_white_domestic <- sapply(1:nrow(domestic_vmat), function(j) lsa::cosine(domestic_vmat[j,], mv_female_white))
+cs.female_white_authority <- sapply(1:nrow(authority_vmat), function(j) lsa::cosine(authority_vmat[j,], mv_female_white))
+
+make_dim_df <- function(a, b, alab, blab, av, bv, flex, snorm) {
+  an <- norm(av, "2")
+  bn <- norm(bv, "2")
+  rbind.data.frame(data.frame(cs=a, identity=alab, word=flex) %>% 
+                     left_join(tfn, by=c("word"="feature")) %>%
+                     mutate(nprod = snorm * an),
+                   data.frame(cs=b, identity=blab, word=flex) %>%
+                     left_join(tfn, by=c("word"="feature")) %>%
+                     mutate(nprod = snorm * bn))
+}
+
+tsig <- function(p) {
+  ifelse(p < 0.001, "***",
+         ifelse(p < 0.01, "**",
+                ifelse(p < 0.05, "*", "x")))
+}
+
+linear_frequency_bias <- function(dimdf, dimtitle, use.scale=F, use.nprod=T, robust=F, ftest=F, stargazer=T, focal.p=F, fullsumm=F, delta.rsq=F) {
+  if(use.scale) {
+    dimdf$fbmeasure <- dimdf$snorm^2
+  } else if(use.nprod) {
+    dimdf$fbmeasure <- 1/dimdf$nprod  
+  } else {
+    dimdf$fbmeasure <- log(dimdf$frequency)
+  }
+  ols <- lm(cs ~ identity, data=dimdf)
+  ols.freqbias <- lm(cs ~ identity + fbmeasure, data=dimdf)
+  if(ftest) {
+    anova(ols, ols.freqbias)
+  } else if(stargazer) {
+    stargazer::stargazer(ols, ols.freqbias,
+                         title=dimtitle,
+                         dep.var.labels=c("Cosine similarity"),
+                         dep.var.caption="",
+                         covariate.labels=c("Identity vector", "Local norm product weight", "Constant"),
+                         star.cutoffs=c(0.05, 0.01, 0.001),
+                         omit.stat=c("n", "adj.rsq"),
+                         single.row = T,
+                         column.sep.width = "1pt",
+                         font.size = "footnotesize",
+                         header=F)
+  } else if(focal.p) {
+    summary(polity_mb_fb.freqbias)$coefficients[2,4]
+  } else if(fullsumm) {
+    if(robust) {
+      print(coeftest(ols, vcov = vcovHC(ols, type="HC1")))
+      print(coeftest(ols.freqbias, vcov = vcovHC(ols.freqbias, type="HC1")))
+    } else {
+      print(summary(ols))
+      print(summary(ols.freqbias))
+      summarize_ovb(dimdf)
+    }
+  } else if(delta.rsq) {
+    data.frame(rsq=c(summary(ols)$r.squared, summary(ols.freqbias)$r.squared),
+               model=c("original model", "frequency interaction"))
+  } else {
+    rbind.data.frame(data.frame(summary(ols)$coefficients, model="original model"),
+                     data.frame(summary(ols.freqbias)$coefficients, model="frequency interaction")) %>%
+      mutate(sig=tsig(`Pr...t..`))
+  }
+}
+
+summarize_ovb <- function(dimdf) {
+  print(sprintf("Linear correlation of cosine similarity and log word frequency, %s: %f", unique(dimdf$identity)[1],
+                cor(dimdf %>% slice_head(n=k) %$% cs, log(dimdf %>% slice_head(n=k) %$% log(frequency)))))
+  print(sprintf("Linear correlation of cosine similarity and log word frequency, %s: %f",unique(dimdf$identity)[2],
+                cor(dimdf %>% slice_tail(n=k) %$% cs, log(dimdf %>% slice_tail(n=k) %$% log(frequency)))))
+  print(sprintf("Covariance of local norm product weight and group (i.e. relative frequency): %f",
+                cov(dimdf$identity == unique(dimdf$identity)[1], dimdf$nprod)))
+}
+
+plot_fbias <- function(dimdf, fbtitle) {
+  dimdf %>%
+    ggplot(aes(x=nprod, y=cs, color=identity)) +
+    geom_point() +
+    geom_hline(yintercept=mean(dimdf %>% filter(identity == first(identity)) %$% cs),
+               color="#00BFC4", linetype="dashed") +
+    geom_hline(yintercept=mean(dimdf %>% filter(identity == last(identity)) %$% cs),
+               color="#F8766D", linetype="dashed") +
+    geom_smooth(method="gam") +
+    ggtitle(fbtitle)
+}
+
+# Frequency bias tends to create omitted variable bias because frequency is correlated
+#  with the cosine similarity and the relative frequency distributions differ by group
+# Adding a measure of frequency into the model tends to increase the standard error on the
+#  grouping variable in the difference in mean, and the model fit goes up a lot
+# Note that this doesn't always make the effect "go away" per se; the problem is that
+#  frequency has a somewhat unpredictable relationship to this problem because it depends
+#  on the exact difference in mean log frequency by group and the linear correlation of 
+#  the log frequency with the cosine similarity
+# In general the reciprocal local norm product weight is the best frequency measure to use
+#  because it's a component of cosine similarity, but any functional form will work; the 
+#  key thing here is that the LPNW tends to vary by group (frequency bias is relative)
+
+# TODO: Concatenate and plot these instead of tables; tables are in appendix already
+
+# Black male <-> Black female
+# linear_frequency_bias(make_dim_df(cs.male_black_polity, cs.female_black_polity, "male_black_polity", "female_black_polity", mv_male_black, mv_female_black, polity_words), "Black Male x Black Female (polity)")
+# linear_frequency_bias(make_dim_df(cs.male_black_economy, cs.female_black_economy, "male_black_economy", "female_black_economy", mv_male_black, mv_female_black, economy_words), "Black Male x Black Female (economy)")
+# linear_frequency_bias(make_dim_df(cs.male_black_culture, cs.female_black_culture, "male_black_culture", "female_black_culture", mv_male_black, mv_female_black, culture_words), "Black Male x Black Female (culture)")
+# linear_frequency_bias(make_dim_df(cs.male_black_domestic, cs.female_black_domestic, "male_black_domestic", "female_black_domestic", mv_male_black, mv_female_black, domestic_words), "Black Male x Black Female (domestic)")
+# 
+# # White male <-> White female
+# linear_frequency_bias(make_dim_df(cs.male_white_polity, cs.female_white_polity, "male_white_polity", "female_white_polity", mv_male_white, mv_female_white, polity_words), "White Male x White Female (polity)")
+# linear_frequency_bias(make_dim_df(cs.male_white_economy, cs.female_white_economy, "male_white_economy", "female_white_economy", mv_male_white, mv_female_white, economy_words), "White Male x White Female (economy)")
+# linear_frequency_bias(make_dim_df(cs.male_white_culture, cs.female_white_culture, "male_white_culture", "female_white_culture", mv_male_white, mv_female_white, culture_words), "White Male x White Female (culture)")
+# linear_frequency_bias(make_dim_df(cs.male_white_domestic, cs.female_white_domestic, "male_white_domestic", "female_white_domestic", mv_male_white, mv_female_white, domestic_words), "White Male x White Female (domestic)")
+# 
+# # White female <-> Black female
+# linear_frequency_bias(make_dim_df(cs.female_white_polity, cs.female_black_polity, "female_white_polity", "female_black_polity", mv_female_white, mv_female_black, polity_words), "White Female x Black Female (polity)")
+# linear_frequency_bias(make_dim_df(cs.female_white_economy, cs.female_black_economy, "female_white_economy", "female_black_economy", mv_female_white, mv_female_black, economy_words), "White Female x Black Female (economy)")
+# linear_frequency_bias(make_dim_df(cs.female_white_culture, cs.female_black_culture, "female_white_culture", "female_black_culture", mv_female_white, mv_female_black, culture_words), "White Female x Black Female (culture)")
+# linear_frequency_bias(make_dim_df(cs.female_white_domestic, cs.female_black_domestic, "female_white_domestic", "female_black_domestic", mv_female_white, mv_female_black, domestic_words), "White Female x Black Female (domestic)")
+# 
+# # Black male <-> White male
+# linear_frequency_bias(make_dim_df(cs.male_black_polity, cs.male_white_polity, "male_black_polity", "male_white_polity", mv_male_black, mv_male_white, polity_words), "Black Male x White Male (polity)")
+# linear_frequency_bias(make_dim_df(cs.male_black_economy, cs.male_white_economy, "male_black_economy", "male_white_economy", mv_male_black, mv_male_white, economy_words), "Black Male x White Male (economy)")
+# linear_frequency_bias(make_dim_df(cs.male_black_culture, cs.male_white_culture, "male_black_culture", "male_white_culture", mv_male_black, mv_male_white, culture_words), "Black Male x White Male (culture)")
+# linear_frequency_bias(make_dim_df(cs.male_black_domestic, cs.male_white_domestic, "male_black_domestic", "male_white_domestic", mv_male_black, mv_male_white, domestic_words), "Black Male x White Male (domestic)")
+# 
+# # White male <-> Black female
+# linear_frequency_bias(make_dim_df(cs.male_white_polity, cs.female_black_polity, "male_white_polity", "female_black_polity", mv_male_white, mv_female_black, polity_words), "White Male x Black Female (polity)")
+# linear_frequency_bias(make_dim_df(cs.male_white_economy, cs.female_black_economy, "male_white_economy", "female_black_economy", mv_male_white, mv_female_black, economy_words), "White Male x Black Female (economy)")
+# linear_frequency_bias(make_dim_df(cs.male_white_culture, cs.female_black_culture, "male_white_culture", "female_black_culture", mv_male_white, mv_female_black, culture_words), "White Male x Black Female (culture)")
+# linear_frequency_bias(make_dim_df(cs.male_white_domestic, cs.female_black_domestic, "male_white_domestic", "female_black_domestic", mv_male_white, mv_female_black, domestic_words), "White Male x Black Female (domestic)")
+# 
+# # White female <-> Black male
+# linear_frequency_bias(make_dim_df(cs.female_white_polity, cs.male_black_polity, "female_white_polity", "male_black_polity", mv_female_white, mv_male_black, polity_words), "White Female x Black Male (polity)")
+# linear_frequency_bias(make_dim_df(cs.female_white_economy, cs.male_black_economy, "female_white_economy", "male_black_economy", mv_female_white, mv_male_black, economy_words), "White Female x Black Male (economy)")
+# linear_frequency_bias(make_dim_df(cs.female_white_culture, cs.male_black_culture, "female_white_culture", "male_black_culture", mv_female_white, mv_male_black, culture_words), "White Female x Black Male (culture)")
+# linear_frequency_bias(make_dim_df(cs.female_white_domestic, cs.male_black_domestic, "female_white_domestic", "male_black_domestic", mv_female_white, mv_male_black, domestic_words), "White Female x Black Male (domestic)")
+# 
+# # Authority (Fig. 5)
+# linear_frequency_bias(make_dim_df(cs.male_black_authority, cs.female_black_authority, "male_black_authority", "female_black_authority", mv_male_black, mv_female_black, authority_words), "Black Male x Black Female (authority)")
+# linear_frequency_bias(make_dim_df(cs.male_white_authority, cs.female_white_authority, "male_white_authority", "female_white_authority", mv_male_white, mv_female_white, authority_words), "White Male x White Female (authority)")
+# linear_frequency_bias(make_dim_df(cs.female_white_authority, cs.female_black_authority, "female_white_authority", "female_black_authority", mv_female_white, mv_female_black, authority_words), "White Female x Black Female (authority)")
+# linear_frequency_bias(make_dim_df(cs.male_black_authority, cs.male_white_authority, "male_black_authority", "male_white_authority", mv_male_black, mv_male_white, authority_words), "Black Male x White Male (authority)")
+# linear_frequency_bias(make_dim_df(cs.male_white_authority, cs.female_black_authority, "male_white_authority", "female_black_authority", mv_male_white, mv_female_black, authority_words), "White Male x Black Female (authority)")
+# linear_frequency_bias(make_dim_df(cs.female_white_authority, cs.male_black_authority, "female_white_authority", "male_black_authority", mv_female_white, mv_male_black, authority_words), "White Female x Black Male (authority)")
+```
+
+## “Aligning Differences: Discursive Diversity and Team Performance.” (Lix et al. 2022, \textit{Management Science}) 
+
+## “The Automatic Analysis of Emotion in Political Speech Based on Transcripts.” (Cochrane et al. 2021, \textit{Political Communication})
+
+
+
+
+
+# Why cosine similarity is frequency-dependent: Some relevant measures and diagnostic plots
+
+In semantic vector spaces, terms are scaled by their co-frequencies; nobody is training these models purely on co-occurrence statistics. Arora et al. (2016) showed that these quantities are functionally related up to an error term in classical word embedding models (also see Ethayarajh et al. 2018).
+
+There are a couple of related issues.
+
+- Vector norms in semantic vector spaces estimated from word cofrequency are functions of frequencies (Arora)
+- Cosine similarity is a non-Euclidean transformation of the inner product space (me)
+- The distribution of cosine similarity is not guaranteed to be approximately normal, and often it is not (Hotelling)
+
+## Common arithmetic comparison strategies exacerbate frequency bias
+
+
+### Sum and mean vectors
+
+
+
+Problems with cos(A, B+C) (from original paper)
+
+### Fixed word lists
+
+The use of fixed word lists is problematic from the perspective of arithmetic comparison because the implied word frequency distributions have different means and variances.
+
+### Three types of comparison
+
+```{r arithmetic_strats, echo=F, out.width="\\textwidth", fig.cap="Arithmetic comparisons on $G(A, B)$; matrix entries represent $\\cos(A_i, B_j)$."}
+knitr::include_graphics("./arithmetic_comparisons.png")
+```
+
+Comparisons (1) and (3) involve reusing vectors in multiple comparisons. Note
+
+#### Paired comparison
+
+- Vectors are reused in multiple comparisons --> bilinear clustering of cosine similarities 
+
+$$
+\begin{aligned}
+\psi(\{A, B\}, +) &= \sum_{a_i \in A}\sum_{b_i \in B} \cos(\theta_{a_ib_i}) \\
+&= \sum_{b_i \in B} \cos(\theta_{a_1b_i}) + \sum_{b_i \in B} \cos(\theta_{a_2b_i}) + ... + \sum_{b_i \in B} \cos(\theta_{a_nb_i}) \\
+&= \sum_{b_i \in B} ||D^{+}_{a(1, 2)}|| \cos(b_i, D^{+}_{1, 2}) + ... + \sum_{b_i \in B} ||D^{+}_{a(n-1,n)}|| \cos(b_i, D^{+}_{a(n-1,n)}) \\
+&= \sum_{a_i, a_i+1 \in A} \sum_{b_i \in B} ||D^{+}_{a(i, i+1)}|| \cos(b_i, D^{+}_{i, i+1}). \\
+\end{aligned}
+$$
+
+#### External pairwise comparison
+#### Internal pairwise comparison
+
+
+## Semantic vector spaces and word cofrequency
+
+Word embeddings as vector space models
+
+Vector spaces have inner products, inner products induce norms
+
+What are vector spaces estimated from? Word cofrequency
+
+The squared euclidean norm of classic word embeddings is proportionate to the log word frequency in the corpus (Weeds et al. 2004; Arora et al. 2016; Ethayarajh et al. 2018)
+
+## Cosine similarity as a hyperbolic decomposition of the inner product
+
+Cosine similarity is a ratio of *three inner products*; we focus a lot on the numerator inner product and the cosine similarity it corresponds to
+
+The inner product between two points is a scalar product of three inner products; what is the functional form thus implied?
+
+The cosine decomposition lies on a hyperbolic paraboloid; this can be seen by plotting it or by observing that there is non-constant negative Gaussian curvature over samples of terms from semantic vector spaces
+
+The implication is that the local norm product weight tells us how much to ``twist'' the Euclidean inner product space at each location in the inner product space. The amount we twist by is described by the product of two self-directed inner products. In general, what this procedure does is it bends the rare region of the inner product space toward the global mean vector. We can visualize this by looking at the cosine similarity of every point with the global mean vector:
+
+```{r global_mean_composite, echo=F, warning=F, fig.height=8.5, out.width="0.9\\textwidth", fig.align="center", fig.cap="Frequency bias in distribution of cosine similarity (top) and inner product (bottom) between context words and global mean vector; point color indicates squared norm of context word. Cosine similarity bends the region of the inner product space containing the short/infrequent vectors toward the mean vector."}
+global_mean_vector <- colMeans(nemb)
+view_from_composite(nemb, global_mean_vector) %>%
+  mutate(freq = sqrt(log(frequency))) ->
+  gmv
+
+gmv %>%
+  arrange(snorm^2) %>%
+  ggplot(aes(x=freq, y=similarity, color=snorm^2)) +
+  geom_point() +
+  geom_vline(xintercept=mean(gmv$freq, na.rm=T), linetype="dotted", alpha=0.8) +
+  geom_hline(yintercept=mean(gmv$similarity, na.rm=T), linetype="dashed", alpha=0.8) +
+  geom_smooth(method="gam", color="tomato") +
+  scale_color_viridis_c() +
+  theme(legend.position="bottom") +
+  labs(title="Frequency-cosine plot, global mean vector",
+       x="Word frequency (sqrt log)",
+       y="Cosine similarity",
+       color=latex2exp::TeX("$||w_j||^2_2$")) -> gfb1
+gmv %>%
+  arrange(snorm^2) %>%
+  ggplot(aes(x=freq, y=inner_product, color=snorm^2)) +
+  geom_point() +
+  geom_vline(xintercept=mean(gmv$freq, na.rm=T), linetype="dotted", alpha=0.8) +
+  geom_hline(yintercept=mean(gmv$inner_product, na.rm=T), linetype="dashed", alpha=0.8) +
+  geom_smooth(method="gam", color="tomato") +
+  scale_color_viridis_c() +
+  theme(legend.position="bottom") +
+  labs(title="Frequency-inner product plot, global mean vector",
+       x="Word frequency (sqrt log)",
+       y="Inner product",
+       color=latex2exp::TeX("$||w_j||^2_2$")) -> gfb2
+ggarrange(gfb1, gfb2, ncol=1, common.legend = T, legend="bottom")
+```
+Local and global comparisons; cosine similarity helps us rebalance what is close and what is large (objects in mirror may be closer than they appear)
+
+The reason why we do this is because it is related to word frequency; the vector norms in the rare term space are not long enough to show up in an index of term pairs by their inner product, so we need to upweight rare terms 
+
+
+
+## Cosine similarity and dependent correlation
+
+The cosine similarity between two word vectors is exactly equivalent to the Pearson product-moment correlation coefficient between them (Rodgers & Nicewander 1980).
+
+Skewed at small n, large |rho|
+
+Steiger (1980) on summarizing correlation matrices with paired dependence structure -- lots of issues with this in practice, particularly wrt. double-dipping, uncertainty estimation...
+
+
+## Diagnostics for frequency bias
+
+I propose three families of diagnostic plot for comparative similarity analysis in word embedding models.
+
+- \textbf{Frequency error plots}: Plots showing the relationship between word frequency and key quantities describing the pointwise structure of the embedding space (vector norms, cosine similarity, Gaussian curvature).
+- \textbf{Inner product decomposition plots}: Plots facilitating inspection of the inner product subspace implied by a particular choice of focal word, sum vector, or mean vector.
+- \textbf{Normalization error plots}: Plots showing changes in the distribution of quantities of interest between the original embedding vector column space and the normalized unit-ball basis implied by the cosine projection.
+
+I use the semantic vector space in Nelson (2021) to show example plots throughout this section.
+
+## Frequency bias plots
+
+### Scale-frequency plot
+
+The simplest way to observe frequency bias is to plot the squared Euclidean norm against the log word frequency distribution for all words in the corpus (Arora et al. 2016).
+
+### Cosine-frequency and cosine-scale plots
+
+Word frequencies and vector norms can also be plotted against the distribution of cosine similarities directly. Calculating all possible pairwise cosine similarities can be prohibitive computationally. A large random sample of word pairs provides a useful approximation; it is often more informative to construct this type of plot in accordance with a proposed arithmetic aggregation procedure, such as with respect to a focal term vector, sum vector, or mean vector.
+
+## Inner product decomposition plots
+
+As previously noted, the local norm product weight $||A||||B||$ plays an important role in characterizing the geometry of cosine similarity with respect to the original inner product space.
+
+### Cosine-LPNW plot
+
+The simplest diagnostic visualization is to plot the local norm product weight against the corresponding cosine similarity; the product of these two values is $\left< A, B \right>$.
+
+The cosine-LPNW plot is useful for visualizing the difference in the role of frequency bias between rank indexing and comparative measurement with cosine similarity. To see this, set a threshold indicating the top $m$ similar words (say $m = 50$), and fit two smooth functions, one involving all points and one involving only points selected by the threshold. In general, the degree of frequency bias increases with $m$.
+
+### Inner product bilinearization plots
+
+It is occasionally helpful to view the cosine-LPNW plot from two additional perspectives implied by the fact that the surface lies in $\mathbb{R}^3$. These plots make the non-Euclidean shape of the decomposition easier to see. They also help to visualize the doubly linear structure of the decomposition. At fixed values of the cosine similarity, there is a linear relationship between the LPNW and the inner product; conversely, at fixed values of the LPNW, there is a linear relationship between the inner product and the cosine similarity. The corresponding fixed values control the slopes on the other side of the bilinear relation.
+
+```{r nelson_lld, echo=F, message=F}
+# Cosine similarity as a locally linear perspective on the inner product space
+# The factorization implies you can look at the manifold from three "sides"
+local_linear_decomp <- function(rangs) {
+  # Plot some inner product distribution by components. Larger objects in the
+  # space have more differentiated IPs, but there are also way fewer of them.
+  rangs %>%
+    ggplot(aes(y=ab_cs, color=ab_ip, x=nprod, size=ab_ip)) +
+    geom_point() +
+    scale_color_viridis_c() +
+    guides(size=F) +
+    theme(legend.position="bottom") ->
+    v1
+  
+  # Cosine similarity differentiates three regions on the inner product space
+  # that we can more easily see if we look from the cosine similarity into the
+  # manifold. Looking from this perspective helps you see the "twist" structure
+  # in A by rotating to the position in which the "flat" structure has a minimal
+  # profile and the twist has a maximal profile. The extremal region of the twist
+  # (by LNPW) is generally more "flat" than it was from the other perspective.
+  # The linear relationship between LNPW and the IP is controlled by cosine similarity.
+  rangs %>%
+    ggplot(aes(color=ab_cs, y=ab_ip, x=nprod, size=ab_cs)) +
+    geom_point() +
+    scale_color_viridis_c() +
+    guides(size=F) +
+    theme(legend.position="bottom") ->
+    v2
+  
+  # Cosine similarity has a linear relationship to the inner product, but only
+  # conditional on the local norm product weight, which defines a class of vector pairs
+  # with the same CS-IP linear relationship. The distribution of cosine similarities in
+  # any given class is generally skewed and tends to have non-zero mean. The variance of
+  # the cosine similarity distribution is non-constant and varies systematically with the
+  # local norm product weight. One way of thinking about this is that the cosine similarity
+  # is a maximally linear perspective on the manifold.
+  rangs %>%
+    ggplot(aes(x=ab_cs, y=ab_ip, color=nprod, size=nprod)) +
+    geom_point() +
+    scale_color_viridis_c() +
+    guides(size=F) +
+    theme(legend.position="bottom") ->
+    v3
+  
+  ggarrange(v1, v2, v3, ncol=3)
+}
+```
+
+```{r nelson_lld_print, echo=F, message=F, fig.height=8, out.width="\\textwidth", fig.align="center", include=F}
+local_linear_decomp(ra_nemb)
+```
+
+### Curvature-frequency plot
+
+As discussed above, cosine similarity can be interpreted as a non-Euclidean decomposition of the inner product space. The decomposition lies on a hyperbolic paraboloid in $\mathbb{R}^3$. The curvature of this surface can be described exactly in terms of the pointwise Gaussian curvature of the hyperbolic paraboloid:
+
+$$\text{K}(A, B) = -(1 + ||A||^2||B||^{2} + \cos^{2}(A, B))^{-2}$$
+
+This equation can be rearranged to parameterize the cosine similarity between $A$ and $B$ as a function of the local norm product weight and the Gaussian curvature:
+
+$$\cos(A, B) = \sqrt{\sqrt{\frac{-1}{K}} - ||A||^2||B||^2 - 1}$$
+
+The Gaussian curvature of the cosine similarity surface with respect to the original inner product and the local norm product weight is negative and non-constant. This implies that cosine similarity does not admit a notion of a globally constant distance metric between two arbitrary points (word pairs) on the manifold. In particular, distances between more distal points on this surface are proportionally elongated.
+
+The overall scale of the vector space has an important consequence: because vector norms are on the scale of the original inner product space, the local norm product weight dominates the Gaussian curvature.
+
+The relationship between the Gaussian curvature and the local norm product weight is helpful for understanding intuitively what cosine similarity is doing to create semantically meaningful lists of words. In particular, it suggests that cosine differentiates short-norm, low-frequency term pairs from each other relative to a focal term by twisting the short, low-frequency vector pair subspaces toward the focal vector in proportion to the relatively "flat" high-frequency subspaces.
+- An implication of this theory is that normalizing the short-norm low-frequency term pairs changes their subspace geometry proportionally more than the long ones (i.e. when one of them is short?).
+- This is easier to see if you rescale the LNPW; it's a lot bigger than the cosine similarity so it's stretched in a way that dominates the curvature
+
+
+```{r nelson_gaussiancurvature, echo=F, message=F, fig.height=8, out.width="\\textwidth", fig.align="center", include=F}
+# Let's look at the Gaussian curvature next
+# This shows that the decomposition is non-Euclidean
+# It also helps us understand what cosine similarity does to the inner product space
+# Mainly what it does is it bends the low-frequency space
+# If you scale the LPNW the relative curvature in the rest of the manifold becomes more pronounced
+ggarrange(ra_nemb %>%
+  arrange(desc(gK)) %>%
+  ggplot(aes(x=nprod, y=ab_cs, color=gK)) +
+  geom_point(size=3) +
+  scale_color_viridis_c(direction=-1, end = 0.95),
+ra_nemb %>%
+  arrange(desc(gK)) %>%
+  ggplot(aes(x=nprod, y=ab_ip, color=gK)) +
+  geom_point(size=3) +
+  scale_color_viridis_c(direction=-1, end = 0.95),
+ra_nemb %>%
+  arrange(desc(gK)) %>%
+  ggplot(aes(x=ab_cs, y=ab_ip, color=gK)) +
+  geom_point(size=3) +
+  scale_color_viridis_c(direction=-1, end = 0.95),
+ncol=3, common.legend = T, legend="bottom")
+
+# Show this in terms of frequency
+ra_nemb %>% 
+  ggplot(aes(x=log(a$frequency), y=gK, color=ab_cs)) +
+  geom_point(size=3) +
+  scale_color_viridis_c() +
+  theme(legend.position="bottom") -> gkp1
+ra_nemb %>% 
+  ggplot(aes(x=log(b$frequency), y=gK, color=ab_cs)) +
+  geom_point(size=3) +
+  scale_color_viridis_c() +
+  theme(legend.position="bottom") -> gkp2
+ggarrange(gkp1, gkp2, ncol=2, common.legend = T, legend="bottom")
+
+# Better plot of curvature-frequency relationship
+ra_nemb %>%
+  arrange(desc(gK)) %>%
+  ggplot(aes(x=log(a$frequency), y=log(b$frequency), color=gK)) +
+  geom_point() +
+  scale_color_viridis_c(direction=-1)
+```
+
+
+## Normalization error plots
+
+```{r nelson_columns_setup, echo=F, message=F, fig.height=8, out.width="\\textwidth", fig.align="center"}
+# Get minimum principal angle
+# This quantity is in degrees by default (more easy to think about)
+principal_angle <- function(embm, t1, t2, n1, n2, deg=F) {
+  sv1 <- svd(embm[c(t1,t2),])
+  sv2 <- svd(rbind(embm[t1,]/n1, embm[t2,]/n2))
+  dists <- c(geometry::dot(sv1$v[,1], sv2$v[,1]),
+             geometry::dot(sv1$v[,2], sv2$v[,1]),
+             geometry::dot(sv1$v[,2], sv2$v[,2]),
+             geometry::dot(sv1$v[,1], sv2$v[,2]))
+  if(deg) {
+    return(min(acos(dists)) * (180/pi))
+  } else {
+    return(min(acos(dists)))
+  }
+}
+
+# Alternative measure of coincidence
+# Krzanowski common space embedding trace statistic
+# Sum of squared principal angles between original and norm spaces
+krz_trace <- function(embm, t1, t2, n1, n2) {
+  d1 <- prcomp(embm[c(t1, t2),])$rotation
+  d2 <- prcomp(rbind(embm[t1,]/n1, embm[t2,]/n2))$rotation
+  
+  krztest <- t(d1) %*% d2 %*% t(d2) %*% d1
+  return(sum(svd(krztest)$d))
+}
+
+# Or, the minimum angle between vectors in the subspace
+krz_angle <- function(embm, t1, t2, n1, n2) {
+  d1 <- prcomp(embm[c(t1, t2),])$rotation
+  d2 <- prcomp(rbind(embm[t1,]/n1, embm[t2,]/n2))$rotation
+  
+  krztest <- t(d1) %*% d2 %*% t(d2) %*% d1
+  return(acos(max(svd(krztest)$d)))
+}
+
+# One helpful way to think about this is in terms of the column space of the embeddings
+# Look at the planar basis for the random draws we've done
+append_dimensionality <- function(embm, rangs) {
+  rangs %>%
+    rowwise() %>%
+    mutate(vsnorm = norm(embm[aterm,] + embm[bterm,], "2"),
+           vdnorm = norm(embm[aterm,] - embm[bterm,], "2"),
+           vsnorm.sc = norm(embm[aterm,]/anorm + embm[bterm,]/bnorm, "2"),
+           vdnorm.sc = norm(embm[aterm,]/anorm - embm[bterm,]/bnorm, "2"),
+           sv1 = svd(embm[c(aterm, bterm),])$d[1],
+           sv2 = svd(embm[c(aterm, bterm),])$d[2],
+           sv1.sc = svd(rbind(embm[aterm,]/anorm, embm[bterm,]/bnorm))$d[1],
+           sv2.sc = svd(rbind(embm[aterm,]/anorm, embm[bterm,]/bnorm))$d[2],
+           basis.ang = lsa::cosine(svd(embm[c(aterm, bterm),])$v[,1],
+                                   svd(rbind(embm[aterm,]/anorm, embm[bterm,]/bnorm))$v[,1]),
+           pr.ang = principal_angle(embm, aterm, bterm, anorm, bnorm, deg=T),
+           krz = krz_trace(embm, aterm, bterm, anorm, bnorm),
+           krza = krz_angle(embm, aterm, bterm, anorm, bnorm),
+           d.samedir = sum(sign(embm[aterm,]) * sign(embm[bterm,]) > 0),
+           # basis.dir = sum(sign(svd(embm[c(aterm, bterm),])$v[,1]) * sign(svd(rbind(embm[aterm,]/anorm, embm[bterm,]/bnorm))$v[,1]) > 0),
+           basis.dir.opp = paste0(which(sign(svd(embm[c(aterm, bterm),])$v[,1]) * sign(svd(rbind(embm[aterm,]/anorm, embm[bterm,]/bnorm))$v[,1]) < 0), collapse="_"),
+           basis.dir = ifelse(nchar(basis.dir.opp) == 0, 100, 99 - str_count(basis.dir.opp, "_")),  # Orthant alignment index: 100 - number of opposed dimensions (saves some SVDs)
+           basis.dir.2 = ifelse(basis.dir < 50, 100-basis.dir, basis.dir),
+           v1 = sv1^2 / (sv1^2 + sv2^2), 
+           v2 = sv2^2 / (sv1^2 + sv2^2), 
+           v1.sc = sv1.sc^2 / (sv1.sc^2 + sv2.sc^2), 
+           v2.sc = sv2.sc^2 / (sv1.sc^2 + sv2.sc^2),
+           scaleratio = max(anorm, bnorm)/min(anorm, bnorm)) ->
+    rangs_plus
+  return(rangs_plus)
+}
+
+# Run dimensional analysis for a random subsample (can take a while)
+ra_nemb_dim <- append_dimensionality(nemb, ra_nemb %>% ungroup() %>% sample_n(2000))
+```
+
+```{r nelson_columns_pra, echo=F, message=F, fig.height=8, out.width="\\textwidth", fig.align="center", include=F}
+# Some informative quantities and plots relating to columnar orientation and normalization
+# First principal angle: minimum angle between principal vectors of AB and AB'
+# Norm deflection score: abs(cos(theta)) between first principal axes of original and normed vector pairs
+#  This is the angle between the plane implied by the original vectors and the plane implied by the normalized vectors
+#  This value lies approximately on the interval [cos(0), cos(pi/4)] (i.e. parallel to "half orthogonal")
+#  So they can be almost parallel or somewhat intersecting
+#  We take the absolute value because sometimes we get the normal vector going the other way, but we don't care
+#  This is a transformation (hyperbolic centering?) of the first principal angle
+#  Note that these are **not** always parallel subspaces! This is super counterintuitive
+#  It is very surprising that A and A' are parallel and B and B' are parallel but AB and AB' are not necessarily parallel
+#  How is this possible? You have to remember these are in 300 dimensions; 
+# Scale ratio: max/min norm{A, B} (how "uneven" or "pointy" is the comparison)
+#  There is a clear relationship between the scale ratio and the norm deflection score wrt cos(A, B)
+#  In general the normed vectors aren't in the same column space as the original vectors
+#  Extremal cosine similarities must have a larger scale ratio when NDS < 1
+# Orthant overlap index index: discrete measure on [0,1] of how close they are to being in the same orthant
+# 
+
+# First principal angle distribution by scale ratio
+# To have a high cosine similarity, the subspaces must be pointy and coincident
+ra_nemb_dim %>%
+  arrange(desc(abs(ab_cs))) %>%
+  ggplot(aes(y=scaleratio, x=pr.ang, color=ab_cs)) +
+  geom_point(size=2) +
+  scale_color_viridis_c() +
+  xlim(0, 90)
+```
+
+```{r nelson_columns_nds, echo=F, message=F, fig.height=8, out.width="\\textwidth", fig.align="center", include=F}
+# Superimposing the positive and negative NDS regions
+# You can see the relationship better this way
+ra_nemb_dim %>%
+  arrange(desc(abs(ab_cs))) %>%
+  ggplot(aes(y=scaleratio, x=abs(basis.ang), color=ab_cs)) +
+  geom_point(size=2) +
+  geom_vline(xintercept=cos(pi/4), linetype="dashed") +
+  scale_color_viridis_c()
+
+# This relationship is self-similar (graph always looks the same no matter where you set the NDS threshold)
+ra_nemb_dim %>%
+  filter(abs(basis.ang) > 0.95) %>%
+  arrange(desc(abs(ab_cs))) %>%
+  ggplot(aes(y=scaleratio, x=abs(basis.ang), color=ab_cs)) +
+  geom_point(size=2) +
+  scale_color_viridis_c() -> bap1
+ra_nemb_dim %>%
+  filter(abs(basis.ang) > 0.99) %>%
+  arrange(desc(abs(ab_cs))) %>%
+  ggplot(aes(y=scaleratio, x=abs(basis.ang), color=ab_cs)) +
+  geom_point(size=2) +
+  scale_color_viridis_c() -> bap2
+ggarrange(bap1, bap2, ncol=2, common.legend = T, legend="bottom")
+```
+
+```{r nelson_lld_nds, echo=F, message=F, fig.height=8, out.width="\\textwidth", fig.align="center", include=F}
+# Show NDS on the inner product manifold
+# NDS describes Var[cos(A,B)|LPNW(A,B)]
+# Smaller NDS values imply cos(A, B) closer to zero
+# TODO: This is important! It causes the ZCME violation. How does NDS relate to the LPNW?
+ra_nemb_dim %>%
+  arrange(desc(abs(basis.ang))) %>%
+  ggplot(aes(x=nprod, y=ab_cs, color=abs(basis.ang), size=-abs(basis.ang))) +
+  geom_point() +
+  scale_color_viridis_c(direction=-1) +
+  scale_size_continuous(range=c(2, 5))
+
+# Using first principal angle
+ra_nemb_dim %>%
+  arrange(pr.ang) %>%
+  ggplot(aes(x=nprod, y=ab_cs, color=pr.ang, size=pr.ang)) +
+  geom_point() +
+  scale_color_viridis_c() +
+  scale_size_continuous(range=c(2, 5))
+```
+
+```{r nelson_normscale, echo=F, message=F, fig.height=8, out.width="\\textwidth", fig.align="center", include=F}
+# Linear relationship between (scaled) norm of summed normalized vectors and spectral norm
+# Scaling is linearizing: cosine similarity is perfectly linear in both quantities when rescaled
+# In contrast, cosine similarity has "pointiness variance" when not normalized
+ra_nemb_dim %>%
+  ggplot(aes(x=vsnorm.sc, y=sv1.sc, color=ab_cs)) +
+  geom_point() + scale_color_viridis_c() +
+  ggtitle("Normalized") + theme(legend.position="bottom") -> scp1
+ra_nemb_dim %>%
+  ggplot(aes(x=vsnorm, y=sv1, color=ab_cs)) +
+  geom_point() + scale_color_viridis_c() +
+  ggtitle("Original scale") + theme(legend.position="bottom") -> scp2
+ggarrange(scp1, scp2, ncol=2, common.legend = T, legend="bottom")
+
+
+# By component vector % variance explained
+# When the space is pointier/longer (?) the cosine similarities become less differentiated, smaller
+ra_nemb_dim %>%
+  ggplot(aes(x=v1, y=v1.sc, color=ab_cs)) +
+  geom_point() +
+  scale_color_viridis_c()
+```
+
+```{r nelson_pra_nds, echo=F, message=F, fig.height=8, out.width="\\textwidth", fig.align="center", include=F}
+# Relationship between first principal angle and NDS
+# The principal angle ranges from 0 to 90d; the NDS ranges from 0 to 45d
+# When the principal angle is greater than 45d, 
+# These are jittered so you can see the concentration of cosines on this manifold
+# Low cosines are half-orthogonal; high cosines are close to parallel
+# Moderate cosines can be anywhere, sorta
+ra_nemb_dim %>%
+  arrange(ab_cs) %>%
+  mutate(abs.basis.ang.deg = acos(abs(basis.ang)) * (180/pi)) %>%
+  ggplot(aes(x=pr.ang, y=abs.basis.ang.deg, color=ab_cs)) +
+  geom_jitter(size=2, width=3) +
+  geom_vline(xintercept=45, linetype="dashed") +
+  scale_color_viridis_c() +
+  theme(legend.position="bottom") -> pbr1
+ra_nemb_dim %>%
+  arrange(desc(ab_cs)) %>%
+  mutate(abs.basis.ang.deg = acos(abs(basis.ang)) * (180/pi)) %>%
+  ggplot(aes(x=pr.ang, y=abs.basis.ang.deg, color=ab_cs)) +
+  geom_jitter(size=2, width=3) +
+  geom_vline(xintercept=45, linetype="dashed") +
+  scale_color_viridis_c() +
+  theme(legend.position="bottom") -> pbr2
+ggarrange(pbr1, pbr2, ncol=2, common.legend = T, legend="bottom")
+```
+
+```{r nelson_orthants, echo=F, message=F, fig.height=8, out.width="\\textwidth", fig.align="center", fig.cap="Orthant proximity index plots.", include=F}
+# One potentially helpful way to think about it is in terms of the vector space orthants
+# Orthants are the n-dimensional equivalent of quadrants; rough descriptor of direction
+# Plot the number of directions they have in common against cosine similarity
+# Color points by local norm product weight to show the bias
+# This has the strong linear relationship we expect
+ra_nemb_dim %>%
+  arrange(nprod) %>%
+  ggplot(aes(y=ab_cs, x=d.samedir, color=nprod)) +
+  geom_point(size=3) +
+  scale_color_viridis_c()
+
+# Plot orthant overlap index against NDS
+# Cosine similarity is lower on average and more variable when the norm-scaled
+#  vector subspace and the original-scale vector subspace don't overlap
+# Only ~4% pair subspaces of a sample of 2000 even lie in the same orthant of the
+#  vector space! Wow
+ra_nemb_dim %>%
+  arrange(ab_cs) %>%
+  ggplot(aes(x=basis.dir.2, y=abs(basis.ang), color=ab_cs)) +
+  geom_point(size=3) +
+  scale_color_viridis_c()
+
+# Remember that within this orthant there is also some variation in the inner product space
+ra_nemb_dim %>%
+  filter(basis.dir.2==100) %>%
+  ggplot(aes(x=nprod, y=ab_cs)) +
+  geom_point()
+```
+
+```{r nelson_krz, echo=F, message=F, fig.height=8, out.width="\\textwidth", fig.align="center", fig.cap="Histogram of Krzanowski coincidence statistic.", include=F}
+# Distribution of Krzanowski common subspace embedding trace statistic
+# Note concentration at 1
+# Note that it appears to be *never* full rank! They have to draw on different parts of the vector space!
+ra_nemb_dim %>%
+  ggplot(aes(x=krz)) +
+  geom_histogram(binwidth=0.01)
+
+# Plot minimum angle between subspaces (Krzanowski method) against scale ratio
+# Large cosine similarities tend to be in more square, less coincident subspaces
+ra_nemb_dim %>%
+  arrange(krza) %>%
+  ggplot(aes(y=krza*(180/pi), x=scaleratio, color=ab_cs)) +
+  geom_point() +
+  geom_smooth(color="gray") +
+  scale_color_viridis_c()
+```
+
+```{r nelson_normalization, echo=F, message=F, fig.height=8, out.width="\\textwidth", fig.align="center", fig.cap="Normalization basis transformation between pairs by product of norm deflection scores within pairs. The more parallel the pairwise comparison space is to its normalized counterpart (NDS product closer to 1), the more the between-comparisons are invariant to normalization. Conversely, when normalization moves the vector pairs into a more different basis, the between-comparison normalized bases tend to be closer to parallel than in their original subspaces, and there is more variance in how close to parallel the corresponding normalized subspaces are. In the more extreme NDSP region, they are less correlated. In particular, when the NDS product is low, less coincident original subspaces rescale more variably.", include=F}
+# How does this affect arithmetic comparisons of cosine similarities?
+
+# Create many random paired-paired comparisons
+# We want to know how the normalization and the frequency bias interact when
+#  we compare two paired comparisons
+make_angles_geomquad <- function(embm, k=10) {
+  sm <- sample(tfn$feature, k*4)
+  sA <- sm[1:k]
+  sB <- sm[(k+1):(k*2)]
+  sC <- sm[(k*2+1):(k*3)]
+  sD <- sm[(k*3+1):(k*4)]
+  
+  data.frame(aterm=sA, bterm=sB, cterm=sC, dterm=sD) %>%
+    rowwise() %>%
+    mutate(anorm = norm(embm[aterm,], "2"),
+           bnorm = norm(embm[bterm,], "2"),
+           cnorm = norm(embm[cterm,], "2"),
+           dnorm = norm(embm[dterm,], "2"),
+           a = tfn[which(tfn$feature == aterm),"frequency"],
+           b = tfn[which(tfn$feature == bterm),"frequency"],
+           c = tfn[which(tfn$feature == cterm),"frequency"],
+           d = tfn[which(tfn$feature == dterm),"frequency"],
+           ab_cs = lsa::cosine(as.numeric(embm[aterm,]), as.numeric(embm[bterm,]))[1],
+           ab_ip = as.numeric(embm[aterm,]) %*% as.numeric(embm[bterm,]),
+           nprod = anorm * bnorm,
+           cd_cs = lsa::cosine(as.numeric(embm[cterm,]), as.numeric(embm[dterm,]))[1],
+           cd_ip = as.numeric(embm[cterm,]) %*% as.numeric(embm[dterm,]),
+           mprod = cnorm * dnorm,
+           ab.scaleratio = max(anorm, bnorm)/min(anorm, bnorm),
+           cd.scaleratio = max(cnorm, dnorm)/min(cnorm, dnorm),
+           ab.pra = principal_angle(embm, aterm, bterm, anorm, bnorm, deg=T),
+           cd.pra = principal_angle(embm, cterm, dterm, cnorm, dnorm, deg=T),
+           ab.basis.ang = lsa::cosine(svd(embm[c(aterm, bterm),])$v[,1],
+                                      svd(rbind(embm[aterm,]/anorm, embm[bterm,]/bnorm))$v[,1]),
+           cd.basis.ang = lsa::cosine(svd(embm[c(cterm, dterm),])$v[,1],
+                                      svd(rbind(embm[cterm,]/cnorm, embm[dterm,]/dnorm))$v[,1]),
+           abcd.ang.sc = lsa::cosine(svd(rbind(embm[aterm,]/anorm, embm[bterm,]/bnorm))$v[,1],
+                                     svd(rbind(embm[cterm,]/cnorm, embm[dterm,]/dnorm))$v[,1]),
+           abcd.ang = lsa::cosine(svd(rbind(embm[aterm,], embm[bterm,]))$v[,1],
+                                      svd(rbind(embm[cterm,], embm[dterm,]))$v[,1])) ->
+    random_angles
+  
+  return(random_angles)
+}
+
+gq.nemb <- make_angles_geomquad(nemb, k=4000)
+
+# Plot angle of AB and CD planar bases to each other in original scale (X) and in "cosine scale" (Y)
+# Color points by the product of the AB-AB' and CD-CD' angles ("norm deflection score product")
+# Split by quantile to show changing relationship; 9iles works well and looks nice, 16iles also useful
+# The more parallel the within-comparisons are to their normalized counterparts (NDS product closer to 1),
+#  the more the between-comparisons are invariant to normalization. Conversely, when normalization moves
+#  the vector pairs into a more different basis, the between-comparison normalized bases tend to be closer
+#  to parallel than in their original subspaces, and there is more variance in how close to parallel the
+#  corresponding normalized subspaces are. In the more extreme NDSP region, they are less correlated. In 
+#  particular, when the NDS product is low, less coincident original subspaces rescale more variably.
+gq.nemb %>%
+  ungroup() %>%
+  mutate(ile = ntile(abs(ab.basis.ang) * abs(cd.basis.ang), 16)) %>%
+  arrange(desc(abs(ab.basis.ang) * abs(cd.basis.ang))) %>%
+  ggplot(aes(x=abs(abcd.ang), y=abs(abcd.ang.sc), color=abs(ab.basis.ang) * abs(cd.basis.ang))) +
+  geom_point(size=3) +
+  geom_smooth(method="lm") +
+  geom_abline(slope=1, intercept=0, linetype="dashed") +
+  scale_color_viridis_c(direction=-1) + 
+  theme(legend.position="bottom") +
+  facet_wrap(~ile)
+```
+
+```{r nelson_norm_nds, echo=F, message=F, fig.height=8, out.width="\\textwidth", fig.align="center", include=F}
+# Split above plot by AB and BC norm deflection score
+gq.nemb %>%
+  ungroup() %>%
+  mutate(ile = ntile(abs(ab.basis.ang), 16)) %>%
+  arrange(desc(abs(ab.basis.ang))) %>%
+  ggplot(aes(x=abs(abcd.ang), y=abs(abcd.ang.sc), color=abs(ab.basis.ang))) +
+  geom_point(size=3) +
+  geom_abline(slope=1, intercept=0, linetype="dashed") +
+  scale_color_viridis_c(direction=-1) + 
+  theme(legend.position="bottom") +
+  facet_wrap(~ile) -> bsp1
+gq.nemb %>%
+  ungroup() %>%
+  mutate(ile = ntile(abs(cd.basis.ang), 16)) %>%
+  arrange(desc(abs(cd.basis.ang))) %>%
+  ggplot(aes(x=abs(abcd.ang), y=abs(abcd.ang.sc), color=abs(cd.basis.ang))) +
+  geom_point(size=3) +
+  geom_abline(slope=1, intercept=0, linetype="dashed") +
+  scale_color_viridis_c(direction=-1) + 
+  theme(legend.position="bottom") +
+  facet_wrap(~ile) -> bsp2
+ggarrange(bsp1, bsp2, ncol=2, common.legend = T, legend="bottom")
+```
+
+```{r nelson_pra_nds_split, echo=F, message=F, fig.height=8, out.width="\\textwidth", fig.align="center", fig.cap="Normalization basis transformation by principal angle product quantiles. Smaller principal angle ratios imply that the local normalization is less curved.", include=F}
+# Use untransformed principal angle product instead
+# Same pattern (but the quantiles go in the other direction)
+gq.nemb %>%
+  ungroup() %>%
+  mutate(ile = ntile(ab.pra * cd.pra, 16)) %>%
+  ggplot(aes(x=abs(abcd.ang), y=abs(abcd.ang.sc), color=ab.pra * cd.pra)) +
+  geom_point(size=3) +
+  geom_smooth(method="lm") +
+  geom_abline(slope=1, intercept=0, linetype="dashed") +
+  scale_color_viridis_c() + 
+  theme(legend.position="bottom") +
+  facet_wrap(~ile)
+```
+
+```{r nelson_pra_basis_extra, echo=F, message=F, fig.height=8, out.width="\\textwidth", fig.align="center", include=F}
+gq.nemb %>%
+  ungroup() %>%
+  arrange(ab.pra) %>%
+  mutate(ile = ntile(ab.pra, 16)) %>%
+  ggplot(aes(x=abs(abcd.ang), y=abs(abcd.ang.sc), color=ab.pra)) +
+  geom_point(size=3) +
+  geom_abline(slope=1, intercept=0, linetype="dashed") +
+  scale_color_viridis_c(direction=-1) + 
+  theme(legend.position="bottom") +
+  facet_wrap(~ile) -> bpp1
+gq.nemb %>%
+  ungroup() %>%
+  arrange(cd.pra) %>%
+  mutate(ile = ntile(cd.pra, 16)) %>%
+  ggplot(aes(x=abs(abcd.ang), y=abs(abcd.ang.sc), color=cd.pra)) +
+  geom_point(size=3) +
+  geom_abline(slope=1, intercept=0, linetype="dashed") +
+  scale_color_viridis_c(direction=-1) + 
+  theme(legend.position="bottom") +
+  facet_wrap(~ile) -> bpp2
+ggarrange(bpp1, bpp2, ncol=2, common.legend = T, legend="bottom")
+```
+
+
+### Scale ratio
+
+When working with the column space of the embeddings, it is often more informative to work with the scale ratio $\frac{\max(||A||,\ ||B||)}{\min(||A||,\ ||B||)}$ instead of the local norm product weight. The scale ratio can be interpreted straightforwardly as a measure of how much longer $A$ or $B$ is compared to the shorter vector in the pair. This quantity clarifies the functional relationship 
+
+### Krzanowski coincidence measure
+
+Krzanowski (1979) describes a summary statistic describing the degree to which two subspaces of a vector space coincide. The statistic is based on the eigenvalues of a common-space embedding of two subspaces of equal rank:
+
+TODO: Krz trace statistic
+
+$\text{Coincidence}(AB, CD)$ is zero when the subspaces are orthogonal. Its maximum value is the rank $k$ of the subspaces (in this case, $k=2$); this value is attained when the subspaces coincide completely.
+
+The coincidence measure reveals an important and often overlooked feature of cosine similarity: for any two $p$-dimensional vectors $A, B$ and their normalized versions $A'=A/||A||, B'=B/||B||$, $\text{Coincidence}(AB, A'B') < p$. That is, the local norm product weight on any cosine similarity implies a normalized subspace that only partially coincides with the original semantic vector space. 
+
+Krzanowski additionally showed that the minimum angle between two vectors in each subspace is equal to the arccosine of the largest singular value of the common space embedding: $\theta_{min}(AB, A'B') = \cos^{-1}(s_1)$. This quantity is closely related to the scale ratio and the cosine similarity; roughly, the quantities have a curvilinear relationship conditional on cosine similarity (up to an error term). Note that this quantity is zero only when the scale ratio is 1; this implies that the original and normalized subspaces for any two vectors share a principal direction only when the two corresponding words are close in frequency. An easy way to see this visually is to plot the A and B log frequencies and color the points by the minimum angle; the minimum angle becomes larger as the frequency ratio becomes more imbalanced.
+
+### Orthant proximity index
+
+Word embedding vectors lie in a $p$-dimensional Euclidean orthant described by the sign vector $\text{sgn}(v_A)$. A purely directional quantity, the \textit{orthant proximity index}, can be obtained by multiplying the sign vectors of $A$ and $B$ and summing the non-negative entries:
+
+$$\text{OPI}(A, B) = \sum_{v(p)>0} \text{sgn}(v_A) \cdot \text{sgn}(v_B)$$
+
+This quantity is similar to Kendall's nonparametric rank correlation coefficient $\tau$; it describes the alignment of $v_A$ and $v_B$ in terms of how many orthants away from each other they are. There is an implied range of possible cosine similarities between two vectors at any given index value. Note that two vectors can be parallel only when $\text{OPI}(A, B) = 0$, but this does not imply that they are in fact parallel. This value does not use any of the scalar information in the underlying vectors, but it is still sensitive to the stability of estimated dimensions that are located close to zero (i.e. when a slight perturbation in the model would flip the sign in the $i$-th dimension for a large number of vectors).
+
+### Norm deflection score
+
+The norm deflection score of two vectors $A, B$ is the absolute value of the cosine between the left singular vectors corresponding to the largest singular values of the original and normalized subspaces spanned by $A$ and $B$:
+
+$$\text{NDS}(A, B) = |\cos(V_{AB}(s_1), V'_{A'B'}(s'_1))|$$
+
+This quantity is a transformation of the first principal angle between the two subspaces. Usefully, it is always positive and ignores trivial differences in the direction of the normal vector to each plane; typically we do not care if these normal vectors point "down" or "up", just what their inclination to each other is.
+
+### First principal angle
+
+The first principal angle between the two subspaces can also be used directly.
+
+
+
+### Norm alignment-scale plot
+
+### Basis deflection plot
+
+
+
+# Discussion
+
+Researchers have suggested that frequency bias is a pathology of the class of word embedding models.
+- van Loon et al. 2022
+- The argument in this paper locates the problem elsewhere. My central claim is that frequency bias is a problem associated with the way that we phrase substantive questions in terms of a semantic vector algebra over lexical subspaces non-randomly selected from the vector space *ex ante*.
+
+My perspective is that frequency information is not an erroneous feature of word embedding models or an irrelevant nuisance with respect to the search for meaning. I think there are several good reasons to think instead that frequency and meaning are closely linked. For one thing, the implicit null model we use when we say that meaning should not be related to frequency is empirically unjustified---we do not know of a language, natural or artificial, without a word frequency distribution (Piantadosi 2014). 
+- Cosine similarity has to have this structure to do it in order to surface matches from the low-frquency range
+- Part of why we like cosine similarity is for this purpose; part of how we think about meaning is in terms of the increased specificity of rarer terms (Levy, Goldberg & Dagan 2014)
+
+The dependence of word embedding analysis on small, fixed word lists heightens the dependence of results on researchers' assumptions about the expression of  rely on ad hoc evaluations of small, pre-selected term lists.} As noted above, embeddings are commonly justified in terms of their performance on stylized analogies involving a relatively small and disproportionately frequent set of underlying lexemes (Mikolov et al. 2013; Antoniak \& Mimno 2018; Kozlowski et al. 2019). Fixed term lists derived from prior work exacerbate this problem considerably. Widely used fixed term lists are sampled highly non-randomly from the term frequency distribution (i.e. the highly frequent end of the distribution). Alternative less-frequent terms with relevant meanings are typically excluded from analysis. Multiple fixed word lists imply subspaces with different word frequency distributions, and in the worst case these subspaces may lack common support entirely. A consequence of frequency bias is that it is trivial to construct justifiable term lists that give different answers given the same comparative methodology (Ethayarajh et al. 2018).
+
+Preprocessing decisions matter (Rodriguez & Spirling)
+- Why not throw out the frequent words you think don't matter, like "the"
+- But not all of the stop words are in this category all of the time, like prepositions
+
+I have left aside the question of replicability, but this issue merits some discussion. Word embedding models are rarely made sufficiently specific to facilitate replication. Pretrained models are especially problematic from this perspective. For example, the training corpora for the four publicly available GloVe models are completely unknown beyond the title of the source, and they cannot be reconstructed given what is known about the training process. A related issue is that researchers rarely provide sufficient information about how text corpora are preprocessed prior to modeling (Denny & Spirling 2016). Seemingly trivial or standard preprocessing decisions in statistical text analysis can amount to substantively different notions of meaning. The works discussed in section 5 exemplify a transparent approach to applied embedding analysis; in particular, it is imperative that underlying corpora be made available for inspection, rather than just the derived embedding vectors. Additionally, researchers should provide the code used to generate the embedding model, regardless of whether the model has been pretrained by another researchers (perhaps especially in this case).
+
+So far I have said nothing about possible alternatives. It is abundantly clear that there is no meaning without frequency (Piantadosi 2014). This leads me to offer three recommendations for research practice. First, researchers might as well employ the inner product space directly by using the Euclidean dot product instead of the cosine similarity. The dot product is a distance metric and supports the geometric intuitions we have about distances. Second, it is worth noting that applying cosine similarity to independent, frequency balanced word samples is hypothetically reasonable. That said, this likely strikes the reader as an odd and difficult sampling strategy
+
+
+# Appendix
+
+## Additional plots and tables, Nelson (2021)
+
+```{r, echo=F, message=F, results="asis"}
+# Black male <-> Black female
+linear_frequency_bias(make_dim_df(cs.male_black_polity, cs.female_black_polity, "male_black_polity", "female_black_polity", mv_male_black, mv_female_black, polity_words), "Black Male x Black Female (polity)")
+linear_frequency_bias(make_dim_df(cs.male_black_economy, cs.female_black_economy, "male_black_economy", "female_black_economy", mv_male_black, mv_female_black, economy_words), "Black Male x Black Female (economy)")
+linear_frequency_bias(make_dim_df(cs.male_black_culture, cs.female_black_culture, "male_black_culture", "female_black_culture", mv_male_black, mv_female_black, culture_words), "Black Male x Black Female (culture)")
+linear_frequency_bias(make_dim_df(cs.male_black_domestic, cs.female_black_domestic, "male_black_domestic", "female_black_domestic", mv_male_black, mv_female_black, domestic_words), "Black Male x Black Female (domestic)")
+
+# White male <-> White female
+linear_frequency_bias(make_dim_df(cs.male_white_polity, cs.female_white_polity, "male_white_polity", "female_white_polity", mv_male_white, mv_female_white, polity_words), "White Male x White Female (polity)")
+linear_frequency_bias(make_dim_df(cs.male_white_economy, cs.female_white_economy, "male_white_economy", "female_white_economy", mv_male_white, mv_female_white, economy_words), "White Male x White Female (economy)")
+linear_frequency_bias(make_dim_df(cs.male_white_culture, cs.female_white_culture, "male_white_culture", "female_white_culture", mv_male_white, mv_female_white, culture_words), "White Male x White Female (culture)")
+linear_frequency_bias(make_dim_df(cs.male_white_domestic, cs.female_white_domestic, "male_white_domestic", "female_white_domestic", mv_male_white, mv_female_white, domestic_words), "White Male x White Female (domestic)")
+
+# White female <-> Black female
+linear_frequency_bias(make_dim_df(cs.female_white_polity, cs.female_black_polity, "female_white_polity", "female_black_polity", mv_female_white, mv_female_black, polity_words), "White Female x Black Female (polity)")
+linear_frequency_bias(make_dim_df(cs.female_white_economy, cs.female_black_economy, "female_white_economy", "female_black_economy", mv_female_white, mv_female_black, economy_words), "White Female x Black Female (economy)")
+linear_frequency_bias(make_dim_df(cs.female_white_culture, cs.female_black_culture, "female_white_culture", "female_black_culture", mv_female_white, mv_female_black, culture_words), "White Female x Black Female (culture)")
+linear_frequency_bias(make_dim_df(cs.female_white_domestic, cs.female_black_domestic, "female_white_domestic", "female_black_domestic", mv_female_white, mv_female_black, domestic_words), "White Female x Black Female (domestic)")
+
+# Black male <-> White male
+linear_frequency_bias(make_dim_df(cs.male_black_polity, cs.male_white_polity, "male_black_polity", "male_white_polity", mv_male_black, mv_male_white, polity_words), "Black Male x White Male (polity)")
+linear_frequency_bias(make_dim_df(cs.male_black_economy, cs.male_white_economy, "male_black_economy", "male_white_economy", mv_male_black, mv_male_white, economy_words), "Black Male x White Male (economy)")
+linear_frequency_bias(make_dim_df(cs.male_black_culture, cs.male_white_culture, "male_black_culture", "male_white_culture", mv_male_black, mv_male_white, culture_words), "Black Male x White Male (culture)")
+linear_frequency_bias(make_dim_df(cs.male_black_domestic, cs.male_white_domestic, "male_black_domestic", "male_white_domestic", mv_male_black, mv_male_white, domestic_words), "Black Male x White Male (domestic)")
+
+# White male <-> Black female
+linear_frequency_bias(make_dim_df(cs.male_white_polity, cs.female_black_polity, "male_white_polity", "female_black_polity", mv_male_white, mv_female_black, polity_words), "White Male x Black Female (polity)")
+linear_frequency_bias(make_dim_df(cs.male_white_economy, cs.female_black_economy, "male_white_economy", "female_black_economy", mv_male_white, mv_female_black, economy_words), "White Male x Black Female (economy)")
+linear_frequency_bias(make_dim_df(cs.male_white_culture, cs.female_black_culture, "male_white_culture", "female_black_culture", mv_male_white, mv_female_black, culture_words), "White Male x Black Female (culture)")
+linear_frequency_bias(make_dim_df(cs.male_white_domestic, cs.female_black_domestic, "male_white_domestic", "female_black_domestic", mv_male_white, mv_female_black, domestic_words), "White Male x Black Female (domestic)")
+
+# White female <-> Black male
+linear_frequency_bias(make_dim_df(cs.female_white_polity, cs.male_black_polity, "female_white_polity", "male_black_polity", mv_female_white, mv_male_black, polity_words), "White Female x Black Male (polity)")
+linear_frequency_bias(make_dim_df(cs.female_white_economy, cs.male_black_economy, "female_white_economy", "male_black_economy", mv_female_white, mv_male_black, economy_words), "White Female x Black Male (economy)")
+linear_frequency_bias(make_dim_df(cs.female_white_culture, cs.male_black_culture, "female_white_culture", "male_black_culture", mv_female_white, mv_male_black, culture_words), "White Female x Black Male (culture)")
+linear_frequency_bias(make_dim_df(cs.female_white_domestic, cs.male_black_domestic, "female_white_domestic", "male_black_domestic", mv_female_white, mv_male_black, domestic_words), "White Female x Black Male (domestic)")
+
+# Authority (Fig. 5)
+linear_frequency_bias(make_dim_df(cs.male_black_authority, cs.female_black_authority, "male_black_authority", "female_black_authority", mv_male_black, mv_female_black, authority_words), "Black Male x Black Female (authority)")
+linear_frequency_bias(make_dim_df(cs.male_white_authority, cs.female_white_authority, "male_white_authority", "female_white_authority", mv_male_white, mv_female_white, authority_words), "White Male x White Female (authority)")
+linear_frequency_bias(make_dim_df(cs.female_white_authority, cs.female_black_authority, "female_white_authority", "female_black_authority", mv_female_white, mv_female_black, authority_words), "White Female x Black Female (authority)")
+linear_frequency_bias(make_dim_df(cs.male_black_authority, cs.male_white_authority, "male_black_authority", "male_white_authority", mv_male_black, mv_male_white, authority_words), "Black Male x White Male (authority)")
+linear_frequency_bias(make_dim_df(cs.male_white_authority, cs.female_black_authority, "male_white_authority", "female_black_authority", mv_male_white, mv_female_black, authority_words), "White Male x Black Female (authority)")
+linear_frequency_bias(make_dim_df(cs.female_white_authority, cs.male_black_authority, "female_white_authority", "male_black_authority", mv_female_white, mv_male_black, authority_words), "White Female x Black Male (authority)")
+```
+
+### Scale-cosine plots, fixed word list terms
+
+```{r nelson_focalword, echo=F, message=F}
+# Next, look at the distribution of cosine similarities for some arbitrary term
+view_from_focal_word <- function(embmat, ft = NA) {
+  if(is.data.frame(embmat)) {
+    embmat <- as.matrix(embmat)
+  }
+  if(is.na(ft)) {
+    ft <- sample(1:nrow(embmat), 1)
+  }
+
+  similmat <- word2vec_similarity(embmat[ft,], embmat, top_n=nrow(embmat), type="cosine")
+  
+  similmat %>%
+    mutate(angle = acos(similarity) * (180/pi)) %>%
+    left_join(tfn %>% as.data.frame() %>% dplyr::select(feature, frequency, snorm), by=c("term2"="feature")) %>%
+    filter(!is.na(frequency)) %>%  # Drop no-frequency data points
+    rowwise() %>%
+    mutate(inner_product = embmat[ft,] %*% embmat[term2,]) ->
+    test_1term
+  return(test_1term)
+}
+
+
+# Plot cosine similarity distribution against log frequency
+# Smoothed fits show linear (blue) and generalized additive (red) trends
+# Median log frequency indicated by dotted vertical line
+# Mean cosine similarity indicated by dashed horizontal line
+# In general frequency bias is concentrated in the low-frequency subspace
+# The GAM fit in particular is usually almost zero-slope in the high-frequency subspace
+# Sometimes it goes back up though (maybe due to high-frequency high-relevance terms, e.g. colors)
+# Point color shows vector norm; note somewhat noisy relationship to frequency
+plot_focal_view <- function(csims) {
+  focal_term <- csims$term2[1]
+  csims[-1,] %>%
+    ggplot(aes(x=log(frequency), y=similarity, color=snorm)) +
+    geom_point() +
+    geom_vline(xintercept=median(log(csims$frequency), na.rm=T), linetype="dotted", alpha=0.8) +
+    geom_hline(yintercept=mean(csims$similarity, na.rm=T), linetype="dashed", alpha=0.8) +
+    geom_smooth(method="gam", color="tomato") +
+    geom_smooth(method="lm") +
+    scale_color_viridis_c() +
+    ggtitle(latex2exp::TeX(sprintf("Frequency-cosine distribution: $\\textit{%s}$", focal_term))) +
+    labs(x="Word frequency (log scale)",
+         y="Cosine similarity",
+         color=latex2exp::TeX("$||w_j||$"))
+}
+```
+
+```{r nelson_fwl_focalview, echo=F, message=F, fig.height=8, out.width="\\textwidth", fig.align="center", include=F}
+# From fixed word list
+plot_focal_view(view_from_focal_word(nemb, "men"))
+plot_focal_view(view_from_focal_word(nemb, "women"))
+plot_focal_view(view_from_focal_word(nemb, "white"))
+plot_focal_view(view_from_focal_word(nemb, "black"))
+```
+
+### Hyperbolic decomposition plots, fixed word list terms
+
+```{r nelson_focal_lld, echo=F, message=F, fig.height=8, out.width="\\textwidth", fig.align="center", include=F}
+# Local linear decomposition from one term's perspective
+local_linear_decomp(view_from_focal_word(nemb, "men") %>%
+                      transmute(ab_cs=similarity, ab_ip=inner_product, nprod=snorm*.$snorm[1]) %>%
+                      filter(ab_cs < 1))  # We don't care about the self-comparison point
+```
+
+### 3D visualization of cosine similarity surface
+
+```{r nelson_3d, echo=F, message=F, fig.height=8, out.width="\\textwidth", fig.align="center", eval=F}
+# 3D visualization makes the hyperbolic-parabolic shape more visible
+library(rgl)
+
+vid <- view_from_focal_word(nemb, "men")
+vid$nprod <- vid$snorm * vid$snorm[1]
+vid %<>% filter(similarity < 1)
+
+# Original scale
+vid.x <- vid$nprod
+vid.y <- vid$similarity
+vid.z <- -vid$inner_product
+
+# Rescaled (misleading?)
+# vid.x <- (vid$nprod - min(vid$nprod)) / (max(vid$nprod) - min(vid$nprod))
+# vid.y <- (vid$similarity - min(vid$similarity)) / (max(vid$similarity) - min(vid$similarity))
+# vid.z <- (vid$inner_product - min(vid$inner_product)) / (max(vid$inner_product) - min(vid$inner_product))
+
+# Plot the surface
+rgl.open()
+rgl.bg(color = "white")
+par3d(windowRect = 50 + c(0,0,1000,1000))
+rgl.points(vid.x, vid.y, vid.z, color="tomato", size=4, alpha=0.7)
+rgl.bbox(color=c("#333377","black"), emission="#333377",
+         specular="#3333FF", shininess=5, alpha=0.4)
+rgl.lines(c(0, max(vid.x)), c(0, 0), c(0, 0), color = "red", lwd=2)  # LNPW is red/X
+rgl.lines(c(0, 0), c(0,max(vid.y)), c(0, 0), color = "blue", lwd=2)  # CS is blue/Y
+rgl.lines(c(0, 0), c(0, 0), c(0,max(vid.z)), color = "green", lwd=2)  # IP is green/Z
+title3d(xlab = "LNPW", ylab = "Cosine", color="black")
+mtext3d("IP", "z-+", line = 2, color="black")
+
+# Fit polynomial to this surface with least squares
+# We can fit it perfectly since the relationship is fixed
+library(rsm)
+curvature <- lm(inner_product ~ poly(similarity, nprod, degree=2), data=vid)
+persp(curvature, nprod ~ similarity, zlab = "inner_product")
+persp(curvature, nprod ~ similarity, zlab = "inner_product", theta=30)
+persp(curvature, nprod ~ similarity, zlab = "inner_product", theta=60)
+persp(curvature, nprod ~ similarity, zlab = "inner_product", theta=90)
+persp(curvature, nprod ~ similarity, zlab = "inner_product", theta=120)
+persp(curvature, nprod ~ similarity, zlab = "inner_product", theta=150)
+persp(curvature, nprod ~ similarity, zlab = "inner_product", theta=180)
+persp(curvature, nprod ~ similarity, zlab = "inner_product", theta=210)
+persp(curvature, nprod ~ similarity, zlab = "inner_product", theta=240)
+persp(curvature, nprod ~ similarity, zlab = "inner_product", theta=270)
+persp(curvature, nprod ~ similarity, zlab = "inner_product", theta=300)
+persp(curvature, nprod ~ similarity, zlab = "inner_product")
+persp(curvature, nprod ~ similarity, zlab = "inner_product", phi = 10)
+persp(curvature, nprod ~ similarity, zlab = "inner_product", phi = 0)
+persp(curvature, nprod ~ similarity, zlab = "inner_product", phi = -10)
+persp(curvature, nprod ~ similarity, zlab = "inner_product", phi = -20)
+persp(curvature, nprod ~ similarity, zlab = "inner_product", phi = -30)
+persp(curvature, nprod ~ similarity, zlab = "inner_product", phi = -40)
+persp(curvature, nprod ~ similarity, zlab = "inner_product", phi = -50)
+persp(curvature, nprod ~ similarity, zlab = "inner_product", phi = -60)
+```

@@ -439,3 +439,106 @@ data.frame(i=1:10) %>%
 #     labs(x=latex2exp::TeX("$||A||*||B||$"), y=latex2exp::TeX("$cos(A, B)$"),
 #          color=latex2exp::TeX("||D(+)||"), size=latex2exp::TeX("||D(-)||"))
 # }
+
+
+
+
+
+
+
+
+# Extra: Cosine as a mixture of distributions of related and unrelated terms
+
+# This is almost always suggestive of a Gaussian mixture (related and unrelated terms)
+# This can be modeled explicitly
+t1t_2g <- mixtools::normalmixEM(test_1term$angle)
+
+# Plot histogram
+# Superimpose mixture of Gaussians, optionally
+mean_angle <- mean(test_1term$angle, na.rm=T)
+median_angle <- median(test_1term$angle, na.rm=T)
+bw <- 1
+test_1term %>%
+  ggplot(aes(x=angle)) +
+  geom_histogram(aes(y=..density..), binwidth=bw) +
+  geom_vline(xintercept=mean_angle, linetype="dashed", color="dodgerblue") +
+  geom_vline(xintercept=median_angle, linetype="dashed", color="tomato") +
+  geom_vline(xintercept=90, linetype="dotted") +
+  # stat_function(fun=dnorm, args=list(mean=t1t_2g$mu, sd=t1t_2g$sigma), n=1000, alpha=0.3) +
+  scale_x_continuous(limits=c(0, 120), breaks=seq(0, 120, by=10))
+
+
+# We are often looking at sum vectors or mean vectors in comparison to w_j
+# What is the distribution of angles between the implied subspaces?
+augment_tri <- function(embm, ratri) {
+  ratri %>%
+    rowwise() %>%
+    mutate(bcnorm = norm(embm[bterm,] + embm[cterm,], "2"),
+           a.bc_cs = lsa::cosine(as.numeric(embm[aterm,]), as.numeric(embm[bterm,] + embm[cterm,]))[1],
+           a.bc_ip = as.numeric(embm[aterm,]) %*% as.numeric(embm[bterm,] + embm[cterm,]),
+           bc.basis.ang = lsa::cosine(svd(embm[c(bterm, cterm),])$v[,1],
+                                      svd(rbind(embm[bterm,]/bnorm, embm[cterm,]/cnorm))$v[,1]),
+           a.bc.basis.ang = lsa::cosine(svd(rbind(embm[aterm,], embm[bterm,]+embm[cterm,]))$v[,1],
+                                        svd(rbind(embm[aterm,]/anorm, embm[bterm,]/bnorm + embm[cterm,]/cnorm))$v[,1])) ->
+    ratri.aug
+  return(ratri.aug)
+}
+
+gt.nemb.aug <- augment_tri(nemb, gt.nemb)
+
+# Compare the normalization column deflections of BC-BC' and ABC-ABC'
+# When the BC distortion is larger, the ABC normalization is less well-aligned
+gt.nemb.aug %>%
+  ggplot(aes(x=abs(bc.basis.ang), y=abs(a.bc.basis.ang), color=a.bc_cs)) +
+  geom_point(size=3) +
+  geom_smooth(method="lm") +
+  geom_abline(slope=1, intercept=0, linetype="dashed") +
+  scale_color_viridis_c(direction=-1) + 
+  theme(legend.position="bottom")
+
+gt.nemb %>%
+  ungroup() %>%
+  mutate(ile = ntile(ab.pr.ang * ac.pr.ang, 12)) %>%
+  arrange(ab.pr.ang * ac.pr.ang) %>%
+  ggplot(aes(x=abs(abc.ang), y=abs(abc.ang.sc), color=ab.pr.ang * ac.pr.ang)) +
+  geom_point(size=3) +
+  geom_smooth(method="lm") +
+  geom_abline(slope=1, intercept=0, linetype="dashed") +
+  scale_color_viridis_c(direction=-1) + 
+  theme(legend.position="bottom") +
+  facet_wrap(~ile)
+
+
+
+# Construct full LNPW and root log frequency product distributions, ~856M comparisons
+# This can take a long time since we're looking at the better part of 1B term pairs.
+
+tfn %>%
+  ungroup() %>%
+  dplyr::select(t1=feature, t2=feature) %>%
+  tidyr::expand(t1, t2) %>%
+  filter(t1 != t2) %>%
+  left_join(tfn %>% dplyr::select(t1=feature, t1n=snorm, t1f=frequency), by="t1") %>%
+  left_join(tfn %>% dplyr::select(t2=feature, t2n=snorm, t2f=frequency), by="t2") %>%
+  mutate(lnpw=t1n*t2n, slfr=sqrt(log(t1f))*sqrt(log(t2f))) ->
+  freqbiasmat
+
+
+
+
+# Arora et al. plot, but for the local norm product weight; i.e. this is the same plot
+#  but for the pair-directed inner product and not the self-directed inner product.
+lnpw_plot <- function(fbm, subsample=1) {
+  fbm %>%
+    sample_frac(size=subsample) %>%
+    ggplot(aes(x=sqrt(log(a$frequency))*sqrt(log(b$frequency)), y=nprod)) +
+    geom_point() +
+    geom_smooth()
+}
+
+
+
+
+\epigraph{\itshape Language is a labyrinth of paths. You approach from one side and know your way about; you approach the same place from another side and no longer know your way about.}{Ludwig Wittgenstein, \textit{Philosophical Investigations} \S 203 (1953)}
+
+
