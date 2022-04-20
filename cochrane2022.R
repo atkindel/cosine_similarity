@@ -1,9 +1,9 @@
-# Replication of "Measuring Intersectionality" (Nelson 2021 Poetics)
-# Describes frequency bias in the canonical SGNS model in the paper
-# See https://github.com/lknelson/measuring_intersectionality
+# Replication of "Emotion in political speech"
+# Cochrane et al. 2022 Political Communication
+# See https://github.com/ccochrane/emotionTranscripts
 # 
 # Author: Alex Kindel
-# Date: 23 March 2022
+# Date: 10 April 2022
 
 library(tidyverse)
 library(readtext)
@@ -15,33 +15,33 @@ library(lmtest)
 library(sandwich)
 library(here)
 
-# Load canonical embedding
-nemb.d <- read_table2(here("data", "nelson2021", "word2vec_all_clean.txt"), col_names = FALSE, skip = 1)
+# Load sentiment scores and Hansard data
+nemb.d <- read_csv(here("data", "kte2019", "GoogleNews_Embedding.csv"), col_names = FALSE, skip = 1)
 nemb.tok <- nemb.d$X1
-nemb <- nemb.d[,-1]  # 31362 x 100 embedding matrix
+nemb <- nemb.d[,-1]  # 1.5M X 300d embedding matrix
 rownames(nemb) <- nemb.tok
 sN <- nrow(nemb)
 sp <- ncol(nemb)
 
-# TODO: Load and aggregate the models used for the confidence intervals
-# TODO: Test whether this embedding matrix is more or less frequency biased
-
 # Fixed word lists
-fwl_male <- c("men", "man", "boy", "boys", "he", "him", "his", "himself")
-fwl_female <- c("women", "woman", "girl", "girls", "she", "her", "hers", "herself")
-fwl_white <- c("white", "caucasian", "anglosaxon")
-fwl_black <- c("black", "colored", "coloured", "negro", "negress", "negros", "afroamerican")
+affluence <- read_csv(here("data", "kte2019", "word_pairs", "affluence_pairs.csv"), col_names = c("RICH", "POOR"))
+gender <- read_csv(here("data", "kte2019", "word_pairs", "gender_pairs.csv"), col_names = c("MASCULINE", "FEMININE"))
+race <- read_csv(here("data", "kte2019", "word_pairs", "race_pairs.csv"), col_names = c("BLACK", "WHITE"))
 
-# Load corpus; get lexicon
-n1 <- readtext(here("data", "nelson2021", "first-person-narratives-american-south", "data", "texts"))
-n2 <- readtext(here("data", "nelson2021", "na-slave-narratives", "data", "texts"))
-nc <- corpus(rbind(n1 %>% mutate(doc_id = paste0("a_", doc_id)),
-                   n2 %>% mutate(doc_id = paste0("b_", doc_id))))
-nt <- tokens(nc, remove_punct=T)  # Drop punctuation
+# Load word frequency file
+# Corpus is Google Ngram files for year in [2000, 2012]
+# TODO
 
-# Form DFM and term frequency matrix
-nd <- dfm_trim(dfm(nt), min_termfreq=10)
-nt_freq <- textstat_frequency(nd)
+# Load COCA word frequency file
+words_219k_m2138 <- read_delim(here("data", "words_219k_m2138.txt"),
+                               "\t", escape_double = FALSE, trim_ws = TRUE, skip = 8)
+
+# Link frequencies and compute word vector norms
+nt_freq <- data.frame(feature=nemb.tok) %>% rowwise() %>% mutate(snorm = norm(nemb[feature,], "2"))
+nt_freq %>%
+  left_join(words_219k_m2138, by=c("feature"="word")) %>%
+  rename(frequency=freq) ->
+  tfn
 
 # Function to plot squared norm as a function of log frequency
 # This is Fig. 2 in Arora et al. (2016)
@@ -57,25 +57,22 @@ aroraplot <- function(embm, termfreqs, vocab) {
     rowwise() %>%
     mutate(snorm = norm(embm[feature,], "2"))%>%
     ggplot(aes(x=log(frequency), y=snorm^2)) +
-    geom_point(alpha=0.1) +
+    geom_point() +
     geom_smooth(method="gam")
 }
 
-nt_freq %>%
-  filter(feature %in% nemb.tok) %>%
-  rowwise() %>%
-  mutate(snorm = norm(nemb[feature,], "2")) ->
-  tfn
-
+# Dropping one outlier here ("trackback")
+# We're totally missing frequencies for the weird ngrams in here like "commenting_policies"
 tfn %>%
-  ggplot(aes(x=log(frequency), y=snorm^2)) +
+  filter(!is.na(freq) & snorm <= 10) %>%
+  ggplot(aes(x=log(freq), y=snorm^2)) +
   geom_point() +
   geom_smooth(method="gam")
 
 # Squared vector norm is proportional to log term frequency
 # The relationship in this model is a little weird for the high frequency terms
 # It should be approximately curvilinear but it's quadratic (???)
-aroraplot(nemb, nt_freq, nemb.tok)
+aroraplot(nemb, tfn, nemb.tok)
 
 # Train a comparable GloVe on this too (takes some time)
 # Look at the relationship here as well
@@ -83,46 +80,9 @@ aroraplot(nemb, nt_freq, nemb.tok)
 ndf <- fcm(nd)  # Glove uses FCM
 ndf@x <- ndf@x + 1  # Use Laplace (add-one) smoothing
 nglove <- GlobalVectors$new(rank=100, x_max=100, learning_rate = 0.05)
-ngld.word <- nglove$fit_transform(ndf, n_iter=10, convergence_tol = 0.01)  # returns word vectors
-ngld.context <- t(nglove$components)
-gemb <- ngld.word + ngld.context  # Composite vectors
+ngld <- nglove$fit_transform(ndf, n_iter=10, convergence_tol = 0.01)
+gemb <- ngld + t(nglove$components)
 aroraplot(gemb, nt_freq, rownames(gemb))
-
-tfn %>%
-  rowwise() %>%
-  mutate(glove.wnorm = norm(ngld.word[feature,], "2"),
-         glove.cnorm = norm(ngld.context[feature,], "2")) ->
-  tfng
-
-# Interesting distinction between the definite article and indefinite articles.
-  
-
-# TODO: GloVe analysis.
-#  - Is there frequency bias in the non-summed vectors (disagg. the word vectors vs. the context vectors)#
-#    - Compare lengths.
-#  - Is there a way of cleverly reweighting the term frequency matrix to get a cosine-like effect?
-#    - Yes (cosine normalization is this set of weights exactly)
-#      - The nice thing about similarity measures is you can heuristically reweight the vectors by the
-#         frequency distribution after training, but this is also a bad thing about them
-#    - Problems associated with this: you don't want to overfit the rare word samples; driving up
-#        context on these words is important)
-#    - You also don't want to underfit the rare word samples by omitting too many of them
-
-# TODO: Weights
-#  - What is the functional form of Jaccard weights?
-#  - Try l1 norm weights
-#  - Try maximum norm weights (divide by max value in vector)
-#  - In general try varying p-norms (0<p<1; p large)
-
-# TODO: Mahalanobis distance (distance of one vector to distribution implied by set of vectors)
-
-# TODO: Can you more aggressively adjust the context window by frequency so that the model is
-#  learning a low-gram (syntactic) relation for the top frequency words and a high-gram (paradigmatic)
-#  relation for the rare words?
-
-# TODO: Look at leave-one-out sensitivity by frequency distribution positions/relations
-#  - Frequency ratio within comparison
-#  - Change in common support in frequency distribution
 
 
 # Now let's examine a sample of the inner product space created by this model

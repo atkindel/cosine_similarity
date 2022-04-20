@@ -45,8 +45,18 @@ wr %>%
   nemb.analogy.3ca
 
 wr.results.3ca <- cbind(wr, nemb.analogy.3ca)
-write(wr.results.3ca$term2, "~/Code/cosine/data/working/nelson_sgns_3ca.txt")
-system("~/Code/cosine/data/analogy_test/score.pl ~/Code/cosine/data/working/nelson_sgns_3ca.txt ~/Code/cosine/data/analogy_test/word_relationship.answers")
+# write(wr.results.3ca$term2, "~/Code/cosine/data/working/nelson_sgns_3ca.txt")
+# system("~/Code/cosine/data/analogy_test/score.pl ~/Code/cosine/data/working/nelson_sgns_3ca.txt ~/Code/cosine/data/analogy_test/word_relationship.answers")
+
+write(wr.results.3ca$term2, "~/Code/cosine/data/working/kte2019_sgns_3ca.txt")
+system("~/Code/cosine/data/analogy_test/score.pl ~/Code/cosine/data/working/kte2019_sgns_3ca.txt ~/Code/cosine/data/analogy_test/word_relationship.answers")
+
+# KTE 2019
+# 51.73% adj
+# 36.45% noun
+# 74.53% verb
+# 56.46% overall
+
 
 # PairDirection
 # Subtract b off of the target matrix
@@ -63,6 +73,7 @@ system("~/Code/cosine/data/analogy_test/score.pl ~/Code/cosine/data/working/nels
 
 # Original SGNS model is 24.43% accurate on MSR-3CA
 # Compare to the Levy & Goldberg SGNS performance benchmark (53.98%)
+# Compare to the Mikolov SGNS performance benchmark (61%)
 # Most of the correct performance of the model is in the verb subspace:
 #  - Adjectives: 9.53% (45.88%) ~36% difference
 #  - Nouns: 18.55% (56.96%) ~38% difference

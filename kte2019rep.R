@@ -1,9 +1,9 @@
-# Replication of "Measuring Intersectionality" (Nelson 2021 Poetics)
+# Replication of "Geometry of Culture" (Kozlowski, Taddy & Evans 2019 ASR)
 # Describes frequency bias in the canonical SGNS model in the paper
-# See https://github.com/lknelson/measuring_intersectionality
+# See https://github.com/KnowledgeLab/GeometryofCulture
 # 
 # Author: Alex Kindel
-# Date: 23 March 2022
+# Date: 11 April 2022
 
 library(tidyverse)
 library(readtext)
@@ -16,32 +16,388 @@ library(sandwich)
 library(here)
 
 # Load canonical embedding
-nemb.d <- read_table2(here("data", "nelson2021", "word2vec_all_clean.txt"), col_names = FALSE, skip = 1)
+nemb.d <- read_csv(here("data", "kte2019", "US_Ngrams_2000_12.csv"), col_names = FALSE, skip = 1)
 nemb.tok <- nemb.d$X1
-nemb <- nemb.d[,-1]  # 31362 x 100 embedding matrix
+nemb <- nemb.d[,-1]  # 1.5M X 300d embedding matrix
 rownames(nemb) <- nemb.tok
 sN <- nrow(nemb)
 sp <- ncol(nemb)
 
-# TODO: Load and aggregate the models used for the confidence intervals
-# TODO: Test whether this embedding matrix is more or less frequency biased
-
 # Fixed word lists
-fwl_male <- c("men", "man", "boy", "boys", "he", "him", "his", "himself")
-fwl_female <- c("women", "woman", "girl", "girls", "she", "her", "hers", "herself")
-fwl_white <- c("white", "caucasian", "anglosaxon")
-fwl_black <- c("black", "colored", "coloured", "negro", "negress", "negros", "afroamerican")
+affluence <- read_csv(here("data", "kte2019", "word_pairs", "affluence_pairs.csv"), col_names = c("RICH", "POOR"))
+gender <- read_csv(here("data", "kte2019", "word_pairs", "gender_pairs.csv"), col_names = c("MASCULINE", "FEMININE"))
+race <- read_csv(here("data", "kte2019", "word_pairs", "race_pairs.csv"), col_names = c("BLACK", "WHITE"))
 
-# Load corpus; get lexicon
-n1 <- readtext(here("data", "nelson2021", "first-person-narratives-american-south", "data", "texts"))
-n2 <- readtext(here("data", "nelson2021", "na-slave-narratives", "data", "texts"))
-nc <- corpus(rbind(n1 %>% mutate(doc_id = paste0("a_", doc_id)),
-                   n2 %>% mutate(doc_id = paste0("b_", doc_id))))
-nt <- tokens(nc, remove_punct=T)  # Drop punctuation
+# Class dimensions
+cultivation <- read_csv(here("data", "kte2019", "word_pairs", "cultivation.csv"))
+education <- read_csv(here("data", "kte2019", "word_pairs", "education.csv"))
+employment <- read_csv(here("data", "kte2019", "word_pairs", "employment.csv"))
+morality <- read_csv(here("data", "kte2019", "word_pairs", "morality.csv"))
+status <- read_csv(here("data", "kte2019", "word_pairs", "status.csv"))
 
-# Form DFM and term frequency matrix
-nd <- dfm_trim(dfm(nt), min_termfreq=10)
-nt_freq <- textstat_frequency(nd)
+# Load word frequency file
+# Corpus is Google Ngram files for year in [2000, 2012]
+freq_fn <- list.files(here("data", "kte2019", "ngram_counts"), pattern = "*.csv", full.names=T)
+freq_f <- lapply(freq_fn, read_csv)
+# freq_c <- plyr::join_all(freq_f, by="unigram", type="full") %>% replace(is.na(.), 0)
+# names(freq_c) <- make.unique(names(freq_c))
+freq_c <- freq_f %>% reduce(full_join, by="unigram")  # %>% replace(is.na(.), 0)
+nfreq <- cbind.data.frame(feature=freq_c$unigram, frequency=rowSums(freq_c[,-1], na.rm=T))
+# nfreq <- freq_c %>% replace(is.na(.), 0) %>% rename(feature=unigram) %>% group_by(feature) %>% summarize(frequency = rowSums(across(where(is.numeric))))
+
+# Load COCA word frequency file
+words_219k_m2138 <- read_delim(here("data", "words_219k_m2138.txt"),
+                               "\t", escape_double = FALSE, trim_ws = TRUE, skip = 8)
+
+# Link frequencies and compute word vector norms
+nt_freq <- apply(nemb, 1, norm, type="2")
+data.frame(feature=nemb.tok, snorm=nt_freq) %>%
+  left_join(words_219k_m2138 %>% select(feature=word, frequency.coca=freq), by="feature") %>%
+  left_join(nfreq, by="feature") ->
+  tfn
+
+# write.csv(tfn, file=here("data", "kte2019", "vocabulary_norms_freqs.csv"))
+
+# Construct comparison data
+affluence %>%
+  left_join(tfn %>% select(feature, norm.dominant=snorm,
+                           freq.ext.dominant=frequency.coca, freq.dominant=frequency),
+            by=c("RICH"="feature")) %>%
+  left_join(tfn %>% select(feature, norm.subordinate=snorm,
+                           freq.ext.subordinate=frequency.coca, freq.subordinate=frequency),
+            by=c("POOR"="feature")) %>%
+  rowwise() %>%
+  mutate(cs = lsa::cosine(as.numeric(nemb[RICH,]), as.numeric(nemb[POOR,])),
+         ip = as.numeric(nemb[RICH,]) %*% as.numeric(nemb[POOR,])) ->
+  affl_f
+
+cultivation %>%
+  left_join(tfn %>% select(feature, norm.dominant=snorm,
+                           freq.ext.dominant=frequency.coca, freq.dominant=frequency),
+            by=c("CIVILIZED"="feature")) %>%
+  left_join(tfn %>% select(feature, norm.subordinate=snorm,
+                           freq.ext.subordinate=frequency.coca, freq.subordinate=frequency),
+            by=c("UNCIVILIZED"="feature")) %>%
+  rowwise() %>%
+  mutate(cs = lsa::cosine(as.numeric(nemb[CIVILIZED,]), as.numeric(nemb[UNCIVILIZED,])),
+         ip = as.numeric(nemb[CIVILIZED,]) %*% as.numeric(nemb[UNCIVILIZED,])) ->
+  cult_f
+
+education %>%
+  left_join(tfn %>% select(feature, norm.dominant=snorm,
+                           freq.ext.dominant=frequency.coca, freq.dominant=frequency),
+            by=c("EDUCATED"="feature")) %>%
+  left_join(tfn %>% select(feature, norm.subordinate=snorm,
+                           freq.ext.subordinate=frequency.coca, freq.subordinate=frequency),
+            by=c("UNEDUCATED"="feature")) %>%
+  rowwise() %>%
+  mutate(cs = lsa::cosine(as.numeric(nemb[EDUCATED,]), as.numeric(nemb[UNEDUCATED,])),
+         ip = as.numeric(nemb[EDUCATED,]) %*% as.numeric(nemb[UNEDUCATED,])) ->
+  educ_f
+
+employment %>%
+  left_join(tfn %>% select(feature, norm.dominant=snorm,
+                           freq.ext.dominant=frequency.coca, freq.dominant=frequency),
+            by=c("BOSS"="feature")) %>%
+  left_join(tfn %>% select(feature, norm.subordinate=snorm,
+                           freq.ext.subordinate=frequency.coca, freq.subordinate=frequency),
+            by=c("WORKER"="feature"))  %>%
+  rowwise() %>%
+  mutate(cs = lsa::cosine(as.numeric(nemb[BOSS,]), as.numeric(nemb[WORKER,])),
+         ip = as.numeric(nemb[BOSS,]) %*% as.numeric(nemb[WORKER,])) ->
+  empl_f
+
+morality %>%
+  left_join(tfn %>% select(feature, norm.dominant=snorm,
+                           freq.ext.dominant=frequency.coca, freq.dominant=frequency),
+            by=c("GOOD"="feature")) %>%
+  left_join(tfn %>% select(feature, norm.subordinate=snorm,
+                           freq.ext.subordinate=frequency.coca, freq.subordinate=frequency),
+            by=c("EVIL"="feature")) %>%
+  rowwise() %>%
+  mutate(cs = lsa::cosine(as.numeric(nemb[GOOD,]), as.numeric(nemb[EVIL,])),
+         ip = as.numeric(nemb[GOOD,]) %*% as.numeric(nemb[EVIL,])) ->
+  good_f
+
+status %>%
+  left_join(tfn %>% select(feature, norm.dominant=snorm,
+                           freq.ext.dominant=frequency.coca, freq.dominant=frequency),
+            by=c("STATUS_HIGH"="feature")) %>%
+  left_join(tfn %>% select(feature, norm.subordinate=snorm,
+                           freq.ext.subordinate=frequency.coca, freq.subordinate=frequency),
+            by=c("STATUS_LOW"="feature")) %>%
+  rowwise() %>%
+  mutate(cs = lsa::cosine(as.numeric(nemb[STATUS_HIGH,]), as.numeric(nemb[STATUS_LOW,])),
+         ip = as.numeric(nemb[STATUS_HIGH,]) %*% as.numeric(nemb[STATUS_LOW,])) ->
+  stat_f
+
+gender %>%
+  left_join(tfn %>% select(feature, norm.dominant=snorm,
+                           freq.ext.dominant=frequency.coca, freq.dominant=frequency),
+            by=c("MASCULINE"="feature")) %>%
+  left_join(tfn %>% select(feature, norm.subordinate=snorm,
+                           freq.ext.subordinate=frequency.coca, freq.subordinate=frequency),
+            by=c("FEMININE"="feature")) %>%
+  rowwise() %>%
+  mutate(cs = lsa::cosine(as.numeric(nemb[MASCULINE,]), as.numeric(nemb[FEMININE,])),
+         ip = as.numeric(nemb[MASCULINE,]) %*% as.numeric(nemb[FEMININE,])) ->
+  gend_f
+
+
+# race %>%
+#   left_join(tfn %>% select(feature, norm.dominant=snorm,
+#                            freq.ext.dominant=frequency.coca, freq.dominant=frequency),
+#             by=c("WHITE"="feature")) %>%
+#   left_join(tfn %>% select(feature, norm.subordinate=snorm,
+#                            freq.ext.subordinate=frequency.coca, freq.subordinate=frequency),
+#             by=c("BLACK"="feature")) ->
+#   race_f
+
+# Construct mean vectors (some of these are not in the embedding?)
+affl_mv <- colMeans(nemb[affl_f$RICH,]-nemb[affl_f$POOR,], na.rm=T)
+cult_mv <- colMeans(nemb[cult_f$CIVILIZED,]-nemb[cult_f$UNCIVILIZED,], na.rm=T)
+educ_mv <- colMeans(nemb[educ_f$EDUCATED,]-nemb[educ_f$UNEDUCATED,])
+empl_mv <- colMeans(nemb[empl_f$BOSS,]-nemb[empl_f$WORKER,])
+good_mv <- colMeans(nemb[good_f$GOOD,]-nemb[good_f$EVIL,])
+stat_mv <- colMeans(nemb[stat_f$STATUS_HIGH,]-nemb[stat_f$STATUS_LOW,], na.rm=T)
+gend_mv <- colMeans(nemb[gend_f$MASCULINE,]-nemb[gend_f$FEMININE,])
+
+# Compute pairwise cosines
+class_angles <- lsa::cosine(t(rbind(affl_mv, cult_mv, educ_mv, empl_mv, good_mv, stat_mv, gend_mv)))
+
+# Note that these have different lengths
+norm(affl_mv, "2")
+norm(cult_mv, "2")
+norm(educ_mv, "2")
+norm(empl_mv, "2")
+norm(good_mv, "2")
+norm(stat_mv, "2")
+norm(gend_mv, "2")
+
+# Plot each comparison's frequency spectrum
+plot_comp <- function(vs, tlab) {
+  vs %>%
+    ggplot(aes(x=sqrt(log(freq.dominant))*sqrt(log(freq.subordinate)),
+               y=norm.dominant * norm.subordinate)) +
+    geom_point() +
+    geom_smooth(method="lm") +
+    ggtitle(tlab) +
+    labs(x="Freq. product (log)", y="LNW") +
+    theme(legend.position = "none") +
+    xlim(5.31812, 21.13513)  # Fix everything to the same range
+}
+
+ggarrange(plot_comp(affl_f, "Affluence"),
+          plot_comp(cult_f, "Cultivation"),
+          plot_comp(educ_f, "Education"),
+          plot_comp(empl_f, "Employment"),
+          plot_comp(good_f, "Morality"),
+          plot_comp(stat_f, "Status"),
+          plot_comp(gend_f, "Gender"),
+          ncol=1)
+
+dim_colors <- RColorBrewer::brewer.pal(7, "Dark2")
+names(dim_colors) <- c("Affluence", "Cultivation", "Education", "Employment", "Morality", "Status", "Gender")
+biplot_comp <- function(vs1, vs2, vl1, vl2) {
+  vs1 %<>% rename(dominant=1, subordinate=2) %>% mutate(cdim=vl1)
+  vs2 %<>% rename(dominant=1, subordinate=2) %>% mutate(cdim=vl2)
+  vs <- rbind.data.frame(vs1, vs2)
+  vs %>%
+    ggplot(aes(x=sqrt(log(freq.dominant))*sqrt(log(freq.subordinate)),
+               y=norm.dominant * norm.subordinate)) +
+    geom_point(aes(color=cdim)) +
+    geom_smooth(aes(color=cdim), method="lm") +
+    geom_smooth(method="lm", color="grey50", linetype="dashed") +
+    scale_color_manual(values=dim_colors) +
+    labs(title=paste0(c(vl1, vl2), collapse=" X "),
+         x="Freq. product (log)", y="LNW") +
+    theme(legend.position = "none")
+}
+
+m <- matrix(NA, 6, 6)
+m[lower.tri(m, diag = T)] <- 1:21
+plots <- list(biplot_comp(affl_f, cult_f, "Affluence", "Cultivation"),
+          biplot_comp(affl_f, educ_f, "Affluence", "Education"),
+          biplot_comp(affl_f, empl_f, "Affluence", "Employment"),
+          biplot_comp(affl_f, good_f, "Affluence", "Morality"),
+          biplot_comp(affl_f, stat_f, "Affluence", "Status"),
+          biplot_comp(affl_f, gend_f, "Affluence", "Gender"),
+          biplot_comp(cult_f, educ_f, "Cultivation", "Education"),
+          biplot_comp(cult_f, empl_f, "Cultivation", "Employment"),
+          biplot_comp(cult_f, good_f, "Cultivation", "Morality"),
+          biplot_comp(cult_f, stat_f, "Cultivation", "Status"),
+          biplot_comp(cult_f, gend_f, "Cultivation", "Gender"),
+          biplot_comp(educ_f, empl_f, "Education", "Employment"),
+          biplot_comp(educ_f, good_f, "Education", "Morality"),
+          biplot_comp(educ_f, stat_f, "Education", "Status"),
+          biplot_comp(educ_f, gend_f, "Education", "Gender"),
+          biplot_comp(empl_f, good_f, "Employment", "Morality"),
+          biplot_comp(empl_f, stat_f, "Employment", "Status"),
+          biplot_comp(empl_f, gend_f, "Employment", "Gender"),
+          biplot_comp(good_f, stat_f, "Morality", "Status"),
+          biplot_comp(good_f, gend_f, "Morality", "Gender"),
+          biplot_comp(stat_f, gend_f, "Status", "Gender"))
+grid.arrange(grobs = plots, layout_matrix = m)
+
+# Density of frequencies within groups, e.g.
+# affl_f %>%
+#   ggplot() +
+#   geom_density(aes(x=log(freq.dominant)), color="tomato", alpha=0.4) +
+#   geom_density(aes(x=log(freq.subordinate)), color="dodgerblue", alpha=0.4)
+
+# Distribution of paired co-frequencies
+cof_dist <- function(cultd, tlab) {
+  cultd %>%
+    ggplot(aes(x=log(freq.dominant),y=log(freq.subordinate))) +
+    geom_point() +
+    geom_abline(intercept=0, slope=1, linetype="dashed") +
+    geom_smooth(method="lm") +
+    labs(x="Log freq. (dominant)",
+         y="Log freq. (subordinate)",
+         title=tlab)
+}
+
+ggarrange(cof_dist(affl_f, "Affluence"),
+          cof_dist(cult_f, "Cultivation"),
+          cof_dist(educ_f, "Education"),
+          cof_dist(empl_f, "Employment"),
+          cof_dist(good_f, "Morality"),
+          cof_dist(stat_f, "Status"),
+          cof_dist(gend_f, "Gender"))
+
+# Distribution of pairwise cosines
+compute_glocal_cos <- function(vs1, vs2, vl1, vl2) {
+  vs1 %<>% rename(dominant=1, subordinate=2) # %>% mutate(cdim=vl1)
+  vs2 %<>% rename(dominant=1, subordinate=2) # %>% mutate(cdim=vl2)
+  vs1.size <- nrow(vs1)
+  vs2.size <- nrow(vs2)
+  
+  # as.character(a) < as.character(b)
+  within_pairs.vs1.d <- expand.grid(a=vs1$dominant, b=vs1$dominant) %>% filter(a != b) %>% rowwise() %>% mutate(ip=t(as.numeric(nemb[which(rownames(nemb)==a),])/vs1.size) %*% as.numeric(nemb[which(rownames(nemb)==b),])/vs1.size)
+  within_pairs.vs1.s <- expand.grid(a=vs1$subordinate, b=vs1$subordinate) %>% filter(a != b) %>% rowwise() %>% mutate(ip=t(as.numeric(nemb[which(rownames(nemb)==a),])/vs1.size) %*% as.numeric(nemb[which(rownames(nemb)==b),])/vs1.size)
+  within_pairs.vs2.d <- expand.grid(a=vs2$dominant, b=vs2$dominant) %>% filter(a != b) %>% rowwise() %>% mutate(ip=t(as.numeric(nemb[which(rownames(nemb)==a),])/vs2.size) %*% as.numeric(nemb[which(rownames(nemb)==b),])/vs2.size)
+  within_pairs.vs2.s <- expand.grid(a=vs2$subordinate, b=vs2$subordinate) %>% filter(a != b) %>% rowwise() %>% mutate(ip=t(as.numeric(nemb[which(rownames(nemb)==a),])/vs2.size) %*% as.numeric(nemb[which(rownames(nemb)==b),])/vs2.size)
+  
+  across_pairs.vs1 <- expand.grid(a=vs1$dominant, b=vs1$subordinate) %>% rowwise() %>% mutate(ip=t(as.numeric(nemb[which(rownames(nemb)==a),])/vs1.size) %*% as.numeric(nemb[which(rownames(nemb)==b),])/vs1.size)
+  across_pairs.vs2 <- expand.grid(a=vs2$dominant, b=vs2$subordinate) %>% rowwise() %>% mutate(ip=t(as.numeric(nemb[which(rownames(nemb)==a),])/vs2.size) %*% as.numeric(nemb[which(rownames(nemb)==b),])/vs2.size)
+  
+  between_pairs.dd <- expand.grid(a=vs1$dominant, b=vs2$dominant) %>% rowwise() %>% mutate(ip=t(as.numeric(nemb[which(rownames(nemb)==a),])/vs1.size) %*% as.numeric(nemb[which(rownames(nemb)==b),])/vs2.size)
+  between_pairs.sd <- expand.grid(a=vs1$subordinate, b=vs2$dominant) %>% rowwise() %>% mutate(ip=t(as.numeric(nemb[which(rownames(nemb)==a),])/vs1.size) %*% as.numeric(nemb[which(rownames(nemb)==b),])/vs2.size)
+  between_pairs.ds <- expand.grid(a=vs1$dominant, b=vs2$subordinate) %>% rowwise() %>% mutate(ip=t(as.numeric(nemb[which(rownames(nemb)==a),])/vs1.size) %*% as.numeric(nemb[which(rownames(nemb)==b),])/vs2.size)
+  between_pairs.ss <- expand.grid(a=vs1$subordinate, b=vs2$subordinate) %>% rowwise() %>% mutate(ip=t(as.numeric(nemb[which(rownames(nemb)==a),])/vs1.size) %*% as.numeric(nemb[which(rownames(nemb)==b),])/vs2.size)
+  
+  mca.est.num <- sum(between_pairs.dd$ip, na.rm=T) - sum(between_pairs.sd$ip, na.rm=T) - sum(between_pairs.ds$ip, na.rm=T) + sum(between_pairs.ss$ip, na.rm=T)
+  a.ssqnorm <- sum((vs1$norm.dominant/vs1.size)^2, na.rm=T) + sum((vs1$norm.subordinate/vs1.size)^2, na.rm=T)
+  a.within <- sum(within_pairs.vs1.d$ip, na.rm=T) + sum(within_pairs.vs1.s$ip, na.rm=T)
+  a.across <- sum(across_pairs.vs1$ip, na.rm=T)
+  b.ssqnorm <- sum((vs2$norm.dominant/vs2.size)^2, na.rm=T) + sum((vs2$norm.subordinate/vs2.size)^2, na.rm=T)
+  b.within <- sum(within_pairs.vs2.d$ip, na.rm=T) + sum(within_pairs.vs2.s$ip, na.rm=T)
+  b.across <- sum(across_pairs.vs2$ip, na.rm=T)
+  mca.est <- mca.est.num / (sqrt(a.ssqnorm + a.within - a.across) * sqrt(b.ssqnorm + b.within - b.across))
+  
+  mca.est
+}
+    
+pairwise_cosines <- function(vs1, vs2, vl1, vl2) {
+  vs1 %<>% rename(dominant=1, subordinate=2) %>% mutate(cdim=vl1)
+  vs2 %<>% rename(dominant=1, subordinate=2) %>% mutate(cdim=vl2)
+  vs1.size <- nrow(vs1)
+  vs2.size <- nrow(vs2)
+  
+  pairlist <- expand.grid(i=1:vs1.size, j=1:vs2.size)
+  pairlist %>%
+    rowwise() %>%
+    mutate(out.cs = lsa::cosine(as.numeric(nemb[vs1$dominant[i],])/vs1.size  - as.numeric(nemb[vs1$subordinate[i],])/vs1.size,
+                                as.numeric(nemb[vs2$dominant[j],])/vs2.size  - as.numeric(nemb[vs2$subordinate[j],])/vs2.size ),
+           out.ip = (as.numeric(nemb[vs1$dominant[i],])/vs1.size - as.numeric(nemb[vs1$subordinate[i],])/vs1.size) %*%
+                    (as.numeric(nemb[vs2$dominant[j],]) - as.numeric(nemb[vs2$subordinate[j],])),
+           ac.cs = lsa::cosine(as.numeric(nemb[vs1$dominant[i],])/vs1.size, as.numeric(nemb[vs2$dominant[j],])),
+           ad.cs = lsa::cosine(as.numeric(nemb[vs1$dominant[i],])/vs1.size, as.numeric(nemb[vs2$subordinate[j],])),
+           bc.cs = lsa::cosine(as.numeric(nemb[vs1$subordinate[i],])/vs1.size, as.numeric(nemb[vs2$dominant[j],])),
+           bd.cs = lsa::cosine(as.numeric(nemb[vs1$subordinate[i],])/vs1.size, as.numeric(nemb[vs2$subordinate[j],])),
+           ac.ip = as.numeric(nemb[vs1$dominant[i],])/vs1.size %*% as.numeric(nemb[vs2$dominant[j],]),
+           ad.ip = as.numeric(nemb[vs1$dominant[i],])/vs1.size %*% as.numeric(nemb[vs2$subordinate[j],]),
+           bc.ip = as.numeric(nemb[vs1$subordinate[i],])/vs1.size %*% as.numeric(nemb[vs2$dominant[j],]),
+           bd.ip = as.numeric(nemb[vs1$subordinate[i],])/vs1.size %*% as.numeric(nemb[vs2$subordinate[j],]),
+           vs1.ip = vs1$ip[i],
+           vs2.ip = vs2$ip[j],
+           vs1.d.norm = vs1$norm.dominant[i],
+           vs1.s.norm = vs1$norm.subordinate[i],
+           vs2.d.norm = vs2$norm.dominant[j],
+           vs2.s.norm = vs2$norm.subordinate[j],
+           vs1.d = vs1$dominant[i],
+           vs1.s = vs1$subordinate[i],
+           vs2.d = vs2$dominant[j],
+           vs2.s = vs2$subordinate[j],
+           vs1.g = vs1$cdim[i],
+           vs2.g = vs2$cdim[j],
+           # mean cosine similarity is a specific weighted mean
+           wt=sqrt(vs1.d.norm^2 + vs1.s.norm^2 - 2*vs1.ip) * sqrt(vs2.d.norm^2 + vs2.s.norm^2 - 2*vs2.ip),
+           rowcos = (ac.ip - ad.ip - bc.ip + bd.ip)/wt)
+}
+
+affl_cult <- pairwise_cosines(affl_f, cult_f, "Affluence", "Cultivation")
+cosines <- list(pairwise_cosines(affl_f, cult_f, "Affluence", "Cultivation"),
+                pairwise_cosines(affl_f, educ_f, "Affluence", "Education"),
+                pairwise_cosines(affl_f, empl_f, "Affluence", "Employment"),
+                pairwise_cosines(affl_f, good_f, "Affluence", "Morality"),
+                pairwise_cosines(affl_f, stat_f, "Affluence", "Status"),
+                pairwise_cosines(affl_f, gend_f, "Affluence", "Gender"),
+                pairwise_cosines(cult_f, educ_f, "Cultivation", "Education"),
+                pairwise_cosines(cult_f, empl_f, "Cultivation", "Employment"),
+                pairwise_cosines(cult_f, good_f, "Cultivation", "Morality"),
+                pairwise_cosines(cult_f, stat_f, "Cultivation", "Status"),
+                pairwise_cosines(cult_f, gend_f, "Cultivation", "Gender"),
+                pairwise_cosines(educ_f, empl_f, "Education", "Employment"),
+                pairwise_cosines(educ_f, good_f, "Education", "Morality"),
+                pairwise_cosines(educ_f, stat_f, "Education", "Status"),
+                pairwise_cosines(educ_f, gend_f, "Education", "Gender"),
+                pairwise_cosines(empl_f, good_f, "Employment", "Morality"),
+                pairwise_cosines(empl_f, stat_f, "Employment", "Status"),
+                pairwise_cosines(empl_f, gend_f, "Employment", "Gender"),
+                pairwise_cosines(good_f, stat_f, "Morality", "Status"),
+                pairwise_cosines(good_f, gend_f, "Morality", "Gender"),
+                pairwise_cosines(stat_f, gend_f, "Status", "Gender"))
+
+
+biplot_cosines <- function(vs) {
+  vs %>%
+    ggplot(aes(x=sqrt(log(freq.dominant))*sqrt(log(freq.subordinate)),
+               y=norm.dominant * norm.subordinate)) +
+    geom_point(aes(color=cdim)) +
+    geom_smooth(aes(color=cdim), method="lm") +
+    geom_smooth(method="lm", color="grey50", linetype="dashed") +
+    scale_color_manual(values=dim_colors) +
+    labs(title=paste0(c(vl1, vl2), collapse=" X "),
+         x="Freq. product (log)", y="LNW") +
+    theme(legend.position = "none")
+}
+
+
+
+# ggarrange(biplot_comp(affl_f, cult_f, "Affluence", "Cultivation"),
+#           biplot_comp(affl_f, educ_f, "Affluence", "Education"),
+#           biplot_comp(affl_f, empl_f, "Affluence", "Employment"),
+#           biplot_comp(affl_f, good_f, "Affluence", "Morality"),
+#           biplot_comp(affl_f, stat_f, "Affluence", "Status"),
+#           biplot_comp(affl_f, gend_f, "Affluence", "Gender"),
+#           biplot_comp(cult_f, educ_f, "Cultivation", "Education"),
+#           biplot_comp(cult_f, empl_f, "Cultivation", "Employment"),
+#           biplot_comp(cult_f, good_f, "Cultivation", "Morality"),
+#           biplot_comp(cult_f, stat_f, "Cultivation", "Status"),
+#           biplot_comp(cult_f, gend_f, "Cultivation", "Gender"),
+#           biplot_comp(educ_f, empl_f, "Education", "Employment"),
+#           biplot_comp(educ_f, good_f, "Education", "Morality"),
+#           biplot_comp(educ_f, stat_f, "Education", "Status"),
+#           biplot_comp(educ_f, gend_f, "Education", "Gender"),
+#           biplot_comp(empl_f, good_f, "Employment", "Morality"),
+#           biplot_comp(empl_f, stat_f, "Employment", "Status"),
+#           biplot_comp(empl_f, gend_f, "Employment", "Gender"),
+#           biplot_comp(good_f, stat_f, "Morality", "Status"),
+#           biplot_comp(good_f, gend_f, "Morality", "Gender"),
+#           biplot_comp(stat_f, gend_f, "Status", "Gender"))
+
+
 
 # Function to plot squared norm as a function of log frequency
 # This is Fig. 2 in Arora et al. (2016)
@@ -53,21 +409,17 @@ nt_freq <- textstat_frequency(nd)
 #  the dimensionality of the inner product space
 aroraplot <- function(embm, termfreqs, vocab) {
   termfreqs %>%
-    filter(feature %in% vocab) %>%
-    rowwise() %>%
-    mutate(snorm = norm(embm[feature,], "2"))%>%
-    ggplot(aes(x=log(frequency), y=snorm^2)) +
-    geom_point(alpha=0.1) +
+    filter(feature %in% vocab & !is.na(frequency)) %>%
+    ggplot(aes(x=sqrt(log(frequency)), y=snorm)) +
+    geom_point() +
     geom_smooth(method="gam")
 }
 
-nt_freq %>%
-  filter(feature %in% nemb.tok) %>%
-  rowwise() %>%
-  mutate(snorm = norm(nemb[feature,], "2")) ->
-  tfn
-
+# Dropping one outlier here ("trackback"?)
+# This is possibly reflective of how much weird partially cleaned HTML is in Google Ngrams?
+# XXX: We're totally missing frequencies for the weird ngrams in here like "commenting_policies"
 tfn %>%
+  # filter(!is.na(frequency) & snorm <= 10) %>%
   ggplot(aes(x=log(frequency), y=snorm^2)) +
   geom_point() +
   geom_smooth(method="gam")
@@ -75,54 +427,17 @@ tfn %>%
 # Squared vector norm is proportional to log term frequency
 # The relationship in this model is a little weird for the high frequency terms
 # It should be approximately curvilinear but it's quadratic (???)
-aroraplot(nemb, nt_freq, nemb.tok)
+aroraplot(nemb, tfn, nemb.tok)
 
 # Train a comparable GloVe on this too (takes some time)
 # Look at the relationship here as well
 # This looks quite a bit more like what we expect to see from Arora et al.
-ndf <- fcm(nd)  # Glove uses FCM
-ndf@x <- ndf@x + 1  # Use Laplace (add-one) smoothing
-nglove <- GlobalVectors$new(rank=100, x_max=100, learning_rate = 0.05)
-ngld.word <- nglove$fit_transform(ndf, n_iter=10, convergence_tol = 0.01)  # returns word vectors
-ngld.context <- t(nglove$components)
-gemb <- ngld.word + ngld.context  # Composite vectors
-aroraplot(gemb, nt_freq, rownames(gemb))
-
-tfn %>%
-  rowwise() %>%
-  mutate(glove.wnorm = norm(ngld.word[feature,], "2"),
-         glove.cnorm = norm(ngld.context[feature,], "2")) ->
-  tfng
-
-# Interesting distinction between the definite article and indefinite articles.
-  
-
-# TODO: GloVe analysis.
-#  - Is there frequency bias in the non-summed vectors (disagg. the word vectors vs. the context vectors)#
-#    - Compare lengths.
-#  - Is there a way of cleverly reweighting the term frequency matrix to get a cosine-like effect?
-#    - Yes (cosine normalization is this set of weights exactly)
-#      - The nice thing about similarity measures is you can heuristically reweight the vectors by the
-#         frequency distribution after training, but this is also a bad thing about them
-#    - Problems associated with this: you don't want to overfit the rare word samples; driving up
-#        context on these words is important)
-#    - You also don't want to underfit the rare word samples by omitting too many of them
-
-# TODO: Weights
-#  - What is the functional form of Jaccard weights?
-#  - Try l1 norm weights
-#  - Try maximum norm weights (divide by max value in vector)
-#  - In general try varying p-norms (0<p<1; p large)
-
-# TODO: Mahalanobis distance (distance of one vector to distribution implied by set of vectors)
-
-# TODO: Can you more aggressively adjust the context window by frequency so that the model is
-#  learning a low-gram (syntactic) relation for the top frequency words and a high-gram (paradigmatic)
-#  relation for the rare words?
-
-# TODO: Look at leave-one-out sensitivity by frequency distribution positions/relations
-#  - Frequency ratio within comparison
-#  - Change in common support in frequency distribution
+# ndf <- fcm(nd)  # Glove uses FCM
+# ndf@x <- ndf@x + 1  # Use Laplace (add-one) smoothing
+# nglove <- GlobalVectors$new(rank=100, x_max=100, learning_rate = 0.05)
+# ngld <- nglove$fit_transform(ndf, n_iter=10, convergence_tol = 0.01)
+# gemb <- ngld + t(nglove$components)
+# aroraplot(gemb, nt_freq, rownames(gemb))
 
 
 # Now let's examine a sample of the inner product space created by this model
@@ -130,7 +445,7 @@ tfn %>%
 plot_angle_manifold <- function(r_angles) {
   r_angles %>%
     ungroup() %>%
-    mutate(lfr = log(a$frequency) + log(b$frequency)) %>%
+    mutate(lfr = log(a) * log(b)) %>%
     ggplot(aes(x=nprod, y=ab_cs)) +
     geom_point(aes(color=lfr, size=lfr), alpha=0.9) +
     scale_color_viridis_c() +
@@ -164,6 +479,16 @@ make_angles <- function(embmat, k=5000) {
 
 ra_nemb <- make_angles(nemb)
 plot_angle_manifold(ra_nemb)
+
+ra_nemb %>% 
+  arrange(ab_cs) %>%
+  ggplot(aes(x=sqrt(log(a))*sqrt(log(b)), y=nprod, color=ab_cs)) +
+  geom_point(size=2.5) +
+  geom_smooth() +
+  scale_color_viridis_c() +
+  theme(legend.position = "bottom") +
+  labs(x="Frequency product (log)",
+       y="Local normalization weight")
 
 # Cosine similarity as a locally linear perspective on the inner product space
 # The factorization implies you can look at the manifold from three "sides"
