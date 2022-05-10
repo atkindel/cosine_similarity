@@ -542,3 +542,219 @@ lnpw_plot <- function(fbm, subsample=1) {
 \epigraph{\itshape Language is a labyrinth of paths. You approach from one side and know your way about; you approach the same place from another side and no longer know your way about.}{Ludwig Wittgenstein, \textit{Philosophical Investigations} \S 203 (1953)}
 
 
+# linear_frequency_bias(make_dim_df(cs.male_black_polity, cs.female_black_polity, "male_black_polity", "female_black_polity", mv_male_black, mv_female_black, polity_words), "Black Male x Black Female (polity)")
+# linear_frequency_bias(make_dim_df(cs.male_black_economy, cs.female_black_economy, "male_black_economy", "female_black_economy", mv_male_black, mv_female_black, economy_words), "Black Male x Black Female (economy)")
+# linear_frequency_bias(make_dim_df(cs.male_black_culture, cs.female_black_culture, "male_black_culture", "female_black_culture", mv_male_black, mv_female_black, culture_words), "Black Male x Black Female (culture)")
+# linear_frequency_bias(make_dim_df(cs.male_black_domestic, cs.female_black_domestic, "male_black_domestic", "female_black_domestic", mv_male_black, mv_female_black, domestic_words), "Black Male x Black Female (domestic)")
+# 
+# # White male <-> White female
+# linear_frequency_bias(make_dim_df(cs.male_white_polity, cs.female_white_polity, "male_white_polity", "female_white_polity", mv_male_white, mv_female_white, polity_words), "White Male x White Female (polity)")
+# linear_frequency_bias(make_dim_df(cs.male_white_economy, cs.female_white_economy, "male_white_economy", "female_white_economy", mv_male_white, mv_female_white, economy_words), "White Male x White Female (economy)")
+# linear_frequency_bias(make_dim_df(cs.male_white_culture, cs.female_white_culture, "male_white_culture", "female_white_culture", mv_male_white, mv_female_white, culture_words), "White Male x White Female (culture)")
+# linear_frequency_bias(make_dim_df(cs.male_white_domestic, cs.female_white_domestic, "male_white_domestic", "female_white_domestic", mv_male_white, mv_female_white, domestic_words), "White Male x White Female (domestic)")
+# 
+# # White female <-> Black female
+# linear_frequency_bias(make_dim_df(cs.female_white_polity, cs.female_black_polity, "female_white_polity", "female_black_polity", mv_female_white, mv_female_black, polity_words), "White Female x Black Female (polity)")
+# linear_frequency_bias(make_dim_df(cs.female_white_economy, cs.female_black_economy, "female_white_economy", "female_black_economy", mv_female_white, mv_female_black, economy_words), "White Female x Black Female (economy)")
+# linear_frequency_bias(make_dim_df(cs.female_white_culture, cs.female_black_culture, "female_white_culture", "female_black_culture", mv_female_white, mv_female_black, culture_words), "White Female x Black Female (culture)")
+# linear_frequency_bias(make_dim_df(cs.female_white_domestic, cs.female_black_domestic, "female_white_domestic", "female_black_domestic", mv_female_white, mv_female_black, domestic_words), "White Female x Black Female (domestic)")
+# 
+# # Black male <-> White male
+# linear_frequency_bias(make_dim_df(cs.male_black_polity, cs.male_white_polity, "male_black_polity", "male_white_polity", mv_male_black, mv_male_white, polity_words), "Black Male x White Male (polity)")
+# linear_frequency_bias(make_dim_df(cs.male_black_economy, cs.male_white_economy, "male_black_economy", "male_white_economy", mv_male_black, mv_male_white, economy_words), "Black Male x White Male (economy)")
+# linear_frequency_bias(make_dim_df(cs.male_black_culture, cs.male_white_culture, "male_black_culture", "male_white_culture", mv_male_black, mv_male_white, culture_words), "Black Male x White Male (culture)")
+# linear_frequency_bias(make_dim_df(cs.male_black_domestic, cs.male_white_domestic, "male_black_domestic", "male_white_domestic", mv_male_black, mv_male_white, domestic_words), "Black Male x White Male (domestic)")
+# 
+# # White male <-> Black female
+# linear_frequency_bias(make_dim_df(cs.male_white_polity, cs.female_black_polity, "male_white_polity", "female_black_polity", mv_male_white, mv_female_black, polity_words), "White Male x Black Female (polity)")
+# linear_frequency_bias(make_dim_df(cs.male_white_economy, cs.female_black_economy, "male_white_economy", "female_black_economy", mv_male_white, mv_female_black, economy_words), "White Male x Black Female (economy)")
+# linear_frequency_bias(make_dim_df(cs.male_white_culture, cs.female_black_culture, "male_white_culture", "female_black_culture", mv_male_white, mv_female_black, culture_words), "White Male x Black Female (culture)")
+# linear_frequency_bias(make_dim_df(cs.male_white_domestic, cs.female_black_domestic, "male_white_domestic", "female_black_domestic", mv_male_white, mv_female_black, domestic_words), "White Male x Black Female (domestic)")
+# 
+# # White female <-> Black male
+# linear_frequency_bias(make_dim_df(cs.female_white_polity, cs.male_black_polity, "female_white_polity", "male_black_polity", mv_female_white, mv_male_black, polity_words), "White Female x Black Male (polity)")
+# linear_frequency_bias(make_dim_df(cs.female_white_economy, cs.male_black_economy, "female_white_economy", "male_black_economy", mv_female_white, mv_male_black, economy_words), "White Female x Black Male (economy)")
+# linear_frequency_bias(make_dim_df(cs.female_white_culture, cs.male_black_culture, "female_white_culture", "male_black_culture", mv_female_white, mv_male_black, culture_words), "White Female x Black Male (culture)")
+# linear_frequency_bias(make_dim_df(cs.female_white_domestic, cs.male_black_domestic, "female_white_domestic", "male_black_domestic", mv_female_white, mv_male_black, domestic_words), "White Female x Black Male (domestic)")
+# 
+# # Authority (Fig. 5)
+# linear_frequency_bias(make_dim_df(cs.male_black_authority, cs.female_black_authority, "male_black_authority", "female_black_authority", mv_male_black, mv_female_black, authority_words), "Black Male x Black Female (authority)")
+# linear_frequency_bias(make_dim_df(cs.male_white_authority, cs.female_white_authority, "male_white_authority", "female_white_authority", mv_male_white, mv_female_white, authority_words), "White Male x White Female (authority)")
+# linear_frequency_bias(make_dim_df(cs.female_white_authority, cs.female_black_authority, "female_white_authority", "female_black_authority", mv_female_white, mv_female_black, authority_words), "White Female x Black Female (authority)")
+# linear_frequency_bias(make_dim_df(cs.male_black_authority, cs.male_white_authority, "male_black_authority", "male_white_authority", mv_male_black, mv_male_white, authority_words), "Black Male x White Male (authority)")
+# linear_frequency_bias(make_dim_df(cs.male_white_authority, cs.female_black_authority, "male_white_authority", "female_black_authority", mv_male_white, mv_female_black, authority_words), "White Male x Black Female (authority)")
+# linear_frequency_bias(make_dim_df(cs.female_white_authority, cs.male_black_authority, "female_white_authority", "male_black_authority", mv_female_white, mv_male_black, authority_words), "White Female x Black Male (authority)")
+
+
+
+The approach I take in this paper is modeled after the literature on regression diagnostics and residual analysis (Cook & Weisberg 1982; Belsley, Kuh & Welsch 1980). Cook and Weisberg write that diagnostic statistics serve two purposes: “they may result in the recognition of important phenomena that might otherwise have gone unnoticed” and they “can be used to suggest appropriate remedial action to the analysis of the model“ (p. 2). I focus on the former task; the latter task I leave for future work, although I comment on some potential directions at the end of the paper. My aim is to enable researchers in the social sciences to notice something about word embedding models that has been “hidden in plain sight” (Zerubavel 2015), and I hope that doing so will provoke further work on ways of measuring aggregate similarity over embedding vector subspaces.
+
+
+plot_fbias <- function(dimdf, fbtitle) {
+  dimdf %>%
+    ggplot(aes(x=nprod, y=cs, color=identity)) +
+    geom_point() +
+    geom_hline(yintercept=mean(dimdf %>% filter(identity == first(identity)) %$% cs),
+               color="#00BFC4", linetype="dashed") +
+    geom_hline(yintercept=mean(dimdf %>% filter(identity == last(identity)) %$% cs),
+               color="#F8766D", linetype="dashed") +
+    geom_smooth(method="gam") +
+    ggtitle(fbtitle)
+}
+
+
+
+## Dependence in pair-structured cosine similarity matrices
+
+```{r arithmetic_strats, echo=F, out.width="\\textwidth", fig.cap="Arithmetic comparisons on $G(A, B)$; matrix entries represent $\\cos(A_i, B_j)$."}
+knitr::include_graphics("./arithmetic_comparisons.png")
+```
+
+Comparisons (1) and (3) involve reusing vectors in multiple comparisons. Vectors are reused in multiple comparisons --> bilinear clustering of cosine similarities. 
+
+The cosine similarity between two word vectors is exactly equivalent to the Pearson product-moment correlation coefficient between them (Fisher XXXX; Hotelling 1953; Dunn \& Clark 1971; Rodgers \& Nicewander 1980; Steiger 1980). The distribution of this quantity is known to be skewed at small n, large |rho|. In general there are further problems with aggregation the larger the cosine matrix becomes. See Steiger (1980) on summarizing correlation matrices with paired dependence structure. This literature has implications for double-dipping on terms to compute multiple angles to the rest of the space from a single position, and the need to account for this when estimating uncertainty.
+
+The arithmetic mean sample cosine similarity is generally non-zero in the full embedding space and in random term subspaces, and it is (in part) a function of the word frequency distribution of the component vectors. Additionally, it is unclear whether there is a well-defined notion of population cosine similarity in natural language (Baayen 2001, ch. 10; Piantadosi 2014).
+
+
+# 
+# polity_svd <- svd(polity_vmat)
+# economy_svd <- svd(economy_vmat)
+# culture_svd <- svd(culture_vmat)
+# domestic_svd <- svd(domestic_vmat)
+# authority_svd <- svd(authority_vmat)
+# 
+# # # Normalized versions
+# wordspace::normalize.rows(polity_vmat) -> polity_vn
+# wordspace::normalize.rows(economy_vmat) -> economy_vn
+# wordspace::normalize.rows(culture_vmat) -> culture_vn
+# wordspace::normalize.rows(domestic_vmat) -> domestic_vn
+# wordspace::normalize.rows(authority_vmat) -> authority_vn
+# 
+# 
+# # Additive race/gender subspaces
+# wbf <- expand_grid(fwl_black, fwl_female)
+# wwf <- expand_grid(fwl_white, fwl_female)
+# wbm <- expand_grid(fwl_black, fwl_male)
+# wwm <- expand_grid(fwl_white, fwl_male)
+# bf <- as.matrix(nemb[wbf$fwl_black,] + nemb[wbf$fwl_female,])
+# wf <- as.matrix(nemb[wwf$fwl_white,] + nemb[wwf$fwl_female,])
+# bm <- as.matrix(nemb[wbm$fwl_black,] + nemb[wbm$fwl_male,])
+# wm <- as.matrix(nemb[wwm$fwl_white,] + nemb[wwm$fwl_male,])
+# 
+# bfs <- svd(bf)
+# wfs <- svd(wf)
+# bms <- svd(bm)
+# wms <- svd(wm)
+
+
+# Crone and Crosby (1995 Technometrics) provide a distance metric between column subspaces
+#  based on Krzanowski 1979: sqrt(p - tr(v_Av_B)) where v_M is the column span of M.
+ccdist <- function(A, B) {
+  p <- ncol(A)
+  Ap <- A %*% solve(t(A)%*%A) %*% t(A)
+  Bp <- B %*% solve(t(B)%*%B) %*% t(B)
+  prtr <- sum(diag(Ap %*% Bp))
+  d <- sqrt(p - prtr)
+  # return(d)
+  return(prtr)
+}
+
+# ccdist(polity_svd$u, economy_svd$u)
+# ccdist(wms$v, bfs$v)
+
+# Anisotropy interlude
+# 
+# # An interesting plot: the variance-covariance matrix of these subspaces
+# # data.frame(v1 = colnames(economy_vmat), data.frame(cov(economy_vmat))) %>%
+# data.frame(v1 = colnames(nemb), data.frame(cov(nemb))) %>%
+#   pivot_longer(starts_with("X")) %>%
+#   rename(v2=name) %>%
+#   ggplot(aes(x=v1, y=v2, fill=value)) +
+#   geom_tile() +
+#   scale_fill_viridis_c()
+# 
+# # An important problem is that this methodology selects subspaces with different
+# #  covariance structures from each other and the global vector space. This can be
+# #  demonstrated by showing that the subspaces have different spectra.
+# 
+# # Mahalanobis distance between sets.
+# maha_econ_dom <- data.frame(economy_words, md=mahalanobis(economy_vmat, colMeans(domestic_vmat), pracma::pinv(cov(domestic_vmat)), inverted=T))
+# maha_dom_econ <- data.frame(domestic_words, md=mahalanobis(domestic_vmat, colMeans(economy_vmat), pracma::pinv(cov(economy_vmat)), inverted=T))
+# maha_pol_econ <- data.frame(polity_words, md=mahalanobis(polity_vmat, colMeans(economy_vmat), pracma::pinv(cov(economy_vmat)), inverted=T))
+# 
+# # Hausdorff distance from subspace A to subspace B is the maximum distance
+# #  from a vector in subspace A to its closest vector in subspace B.
+# #  The quantity is non-commutative when the subspaces aren't the same shape;
+# #   this is another way of saying the distance matrix is asymmetric.
+# #  You can use the difference as a measure of anisotropy
+# #   - you can perturb this to look at how sensitive the anisotropy is to leave-one-out
+# polity_economy_dm <- as.matrix(pdist::pdist(polity_vmat, economy_vmat))
+# #polity_economy_dm %>% reshape2::melt() %>% ggplot(aes(x=Var1, y=Var2, fill=value)) + geom_tile()  # Asymmetric
+# hd_polity_economy_left <- max(apply(polity_economy_dm, 1, min))  # DH(polity->economy)
+# hd_polity_economy_right <- max(apply(polity_economy_dm, 2, min))  # DH(economy->polity)
+# 
+# # There is often a small set of target points that induces the metric for a large
+# #  set of the starting points, in both directions. The modal closest point tends to be
+# #  the maximally far point in the set of closest points (i.e. the Hausdorff inducing point).
+# hd_polity_economy_left.v <- apply(polity_economy_dm, 1, which.min)
+# hd_polity_economy_right.v <- apply(polity_economy_dm, 2, which.min)
+# hd_polity_economy_left.i <- as.integer(names(which.max(table(apply(polity_economy_dm, 1, which.min)))))
+# hd_polity_economy_right.i <- as.integer(names(which.max(table(apply(polity_economy_dm, 2, which.min)))))
+# hdpe_left.it <- economy_words[hd_polity_economy_left.i]
+# hdpe_right.it <- polity_words[hd_polity_economy_right.i]
+# 
+# # Another example of anisotropic comparison
+# # This one is less asymmetric
+# culture_domestic_dm <- as.matrix(pdist::pdist(culture_vmat, domestic_vmat))
+# hd_culture_domestic_left <- max(apply(culture_domestic_dm, 1, min))  # DH(culture->domestic)
+# hd_culture_domestic_right <- max(apply(culture_domestic_dm, 2, min))  # DH(domestic->culture)
+# hd_culture_domestic_left.v <- apply(culture_domestic_dm, 1, which.min)
+# hd_culture_domestic_right.v <- apply(culture_domestic_dm, 2, which.min)
+# 
+# culture_economy_dm <- as.matrix(pdist::pdist(culture_vmat, economy_vmat))
+# hd_culture_economy_left <- max(apply(culture_economy_dm, 1, min))  # DH(culture->economy)
+# hd_culture_economy_right <- max(apply(culture_economy_dm, 2, min))  # DH(economy->culture)
+# hd_culture_economy_left.v <- apply(culture_economy_dm, 1, which.min)
+# hd_culture_economy_right.v <- apply(culture_economy_dm, 2, which.min)
+# 
+
+
+# Back to frequency bias...!
+
+
+A weight-based interpretation of cosine similarity clarifies the role of the ratio in producing frequency-biased quantities from word embedding models. Taking the cosine of two word vectors enables us to estimate how far apart they are adjusted by their respective positions in the underlying word frequency distribution. However, the way that cosine similarity accomplishes this transformation is not constant everywhere in the original inner product space. The local normalization weight function encodes a notion of similarity that prefers rare words: holding the inner product constant, cosine similarity increases as the product of the vector norms becomes small. Consequently, conventional arithmetic summaries of cosine similarities tend to show strong correlations with measures of word frequency, particularly when the set of cosine similarities is determined by a pairwise correlation structure, as is common in applications of word embeddings in the social sciences. The root of frequency bias is an implicit assumption that the local *within-pair* interpretation of cosine similarity extends to the global *between-pair* mathematical characteristics of arithmetic summaries of cosine similarities. In practice, the amount of distortion implied by cosine similarity varies from application to application; I turn next to discussing a few cases of frequency bias in applied settings before returning to  
+
+
+
+## Correlation structure and scale clustering
+
+Another common strategy in the literature involves summarizing similarities between two sets of word vectors $X, Y$ of the form $\Psi_{X,Y}=\left\{\cos(X_i,Y_j)\right\}_{i=1, j=1}^{N,M}$. Each $X_i$ is reused in $j$ comparisons and each $Y_j$ is reused in $i$ comparisons. A closely related comparison within one set of vectors $X$ is $\Psi_{X,X}=\left\{\cos(X_i,X_j)\right\}_{i\neq j}^{N}$, where each vector is compared to the $N-1$ other vectors in the set.
+
+
+In particular, although the exact shape of semantic vector spaces is somewhat model dependent, in general log-bilinear word embedding models are designed to estimate frequency-varying vector norms in order to optimally encode the underlying word-word co-frequency data (Mnih & Hinton 2008; Andreas & Klein 2015; Arora et al. 2016, 2018). Consequently, there is no "neutral" choice of weights that results in a distance metric that would allow us to ignore word frequency.^[A uniform distribution of meaning over frequency is not a neutral choice of weights; arguably, it also does not result in a realistic model, because we should avoid the assumption that the level of generality/specificity in discourse is constant.] Similarities are heuristic projections of semantic vector spaces that explicitly express the researcher's preference for associations with common or rare words in terms of a second normalized inner product space. They provide an *intentionally* distorted perspective on the inner product space that is useful for some purposes and less for others. Another implication of viewing similarity as a weight estimation procedure is that researchers need not apply any one similarity coefficient in order to construct informative models of variation in meaning using word embeddings. Many potential weighting schemes might be appropriate for different types of question, to the extent that they help researchers explore relevant regions of the original semantic vector space.
+
+# Appendix B: Replications in progress
+
+
+## “Aligning Differences: Discursive Diversity and Team Performance.” (Lix et al. 2022) 
+
+\textit{In progress.}
+
+## “The Automatic Analysis of Emotion in Political Speech Based on Transcripts.” (Cochrane et al. 2022)
+
+\textit{In progress.}
+
+The previous section suggests that cosine similarity can be understood as a non-Euclidean projection of the inner product space that distorts it in a way described by the local normalization weight function. This suggests the following geometric interpretation of the projection: it is smoothly bending the rare region of the underlying word frequency distribution toward the global mean vector. We can visualize this by looking at the mean cosine similarity at every frequency with the global mean vector (Figure \ref{fig:global_mean_csbend}). This brings our attention to the functional form of the cosine similarity operation. What enables this seemingly very simple quantity to perform such a complicated transformation of the inner product space?
+
+\left<\Omega^{A}, X_i\right>&= \gamma_0\text{LNW}(\Omega^{A}, X_i) + \gamma_1\cos(\Omega^{B}, X_i)\text{LNW}(\Omega^{A}, X_i) + v_i \\
+&+ \color{red}{\gamma_2 + \gamma_3\cos(\Omega^{B}, X_i) + \gamma_4\text{LNW}^{-1}(\Omega^{B}, X_i) + \gamma_5\left<\Omega^{B}, X_i\right>} \\
+&+ \color{red}{\gamma_6\left<\Omega^{B}, X_i\right> \text{LNW}(\Omega^{A}, Y_i) + \gamma_7\frac{\text{LNW}(\Omega^{A}, Y_i)}{\text{LNW}(\Omega^{B}, X_i)}} \\
+
+ Like prior work, I assume that operations in semantic vector spaces are reasonably analogous to the targeted cultural-associative processes and that standard embedding models are capable (in principle) of estimating vector spaces that adequately support descriptions of these associations.
+ 
+ # Bias: link between covariance ratios.
+# There is overlap where the gender (pink/red) and race (yellow/teal) categories are repeated
+fblm_results %>% ggplot(aes(x=as.numeric(b2.cr), y=as.numeric(b3.cr), color=comparison, label=institution)) + geom_text()
+
+An alternative distance-oriented approach is to employ set-valued distance metrics such as the Hausdorff distance, which measures the furthest nearest neighbor in set B of every point in set A (or vice-versa). This is an asymmetric quantity ("the" Hausdorff distance is the maximum of both of these distances) so examining both sides is usually preferable.

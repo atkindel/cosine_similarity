@@ -95,7 +95,16 @@ tfn %>%
   tfng
 
 # Interesting distinction between the definite article and indefinite articles.
-  
+
+# Pointwise mutual information
+pminf <- function(t1, t2) {
+  f1 <- nt_freq$frequency[which(nt_freq$feature == t1)]
+  f2 <- nt_freq$frequency[which(nt_freq$feature == t2)]
+  return(log(as.numeric(ndf[t1, t2])/(f1 * f2)))
+}
+
+# Try SVD of the FCM.
+
 
 # TODO: GloVe analysis.
 #  - Is there frequency bias in the non-summed vectors (disagg. the word vectors vs. the context vectors)#
@@ -107,14 +116,6 @@ tfn %>%
 #    - Problems associated with this: you don't want to overfit the rare word samples; driving up
 #        context on these words is important)
 #    - You also don't want to underfit the rare word samples by omitting too many of them
-
-# TODO: Weights
-#  - What is the functional form of Jaccard weights?
-#  - Try l1 norm weights
-#  - Try maximum norm weights (divide by max value in vector)
-#  - In general try varying p-norms (0<p<1; p large)
-
-# TODO: Mahalanobis distance (distance of one vector to distribution implied by set of vectors)
 
 # TODO: Can you more aggressively adjust the context window by frequency so that the model is
 #  learning a low-gram (syntactic) relation for the top frequency words and a high-gram (paradigmatic)
@@ -144,7 +145,8 @@ plot_angle_manifold <- function(r_angles) {
 # Look at a uniformly random (wrt. term frequency) sample of term pairs
 # Default is 5k term pairs
 make_angles <- function(embmat, k=5000) {
-  sm <- sample(tfn$feature, k*2)
+  rmax <- 10000
+  sm <- sample(tfn$feature[1:rmax], k*2)
   sA <- sm[1:k]
   sB <- sm[(k+1):(k*2)]
   data.frame(aterm=sA, bterm=sB) %>%
@@ -156,7 +158,12 @@ make_angles <- function(embmat, k=5000) {
            ab_cs = lsa::cosine(as.numeric(embmat[aterm,]), as.numeric(embmat[bterm,]))[1],
            ab_ip = as.numeric(embmat[aterm,]) %*% as.numeric(embmat[bterm,]),
            nprod = anorm * bnorm,
-           gK = -1 * (1 + nprod^2 + ab_cs^2)^-2) ->
+           # gK = -1 * (1 + nprod^2 + ab_cs^2)^-2
+           # pmi = pminf(aterm, bterm),
+           ab_tani = ab_ip / (anorm^2 + bnorm^2 - ab_ip),
+           ab_dice = ab_ip / (anorm^2 + bnorm^2),
+           ab_l1 = ab_ip / sum(abs(embmat[aterm,])) * sum(abs(embmat[bterm,])),
+           ab_lmax = ab_ip / max(abs(embmat[aterm,])) * max(abs(embmat[bterm,]))) ->
     random_angles
   
   return(random_angles)
