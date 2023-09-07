@@ -1545,7 +1545,7 @@ Breusch, T. S., & Pagan, A. R. 1979. "A simple test for heteroscedasticity and r
 
 Caillez, F., and P. Kuntz. 1996. "A contribution to the study of the metric and Euclidean structures of dissimilarities." *Psychometrika* 61(2), 241-253.
 
-Caliskan, A, J.J. Bryson and A. Narayanan. 2017. “Semantics derived automatically from language corpora contain human-like biases.” Science 356(6334): 183-186.
+Caliskan, A, J.J. Bryson and A. Narayanan. 2017. “Semantics derived automatically from language corpora contain human-like biases.” *Science* 356(6334): 183-186.
 
 Casson, M. C. 1973. "Linear regression with error in the deflating variable." *Econometrica* 41(4): 751-759.
 
