@@ -1,0 +1,450 @@
+---
+title: "Supplementary Materials for ``Internally consistent estimation of multidimensional word associations in text corpora''"
+author: "Alexander T. Kindel"
+date: "11 September 2023"
+toc: FALSE
+bibliography: Kindel_cosines_Science_SI.bib
+csl: science.csl
+output:
+  pdf_document:
+    latex_engine: xelatex
+    keep_tex: TRUE
+    toc: TRUE
+    toc_depth: 4
+    dev: png
+header-includes:
+  - \usepackage{setspace}
+  - \usepackage{enumitem}
+  - \usepackage{epigraph}
+  - \usepackage{cancel}
+  - \usepackage{bbm}
+  - \usepackage{rotating}
+  - \usepackage{caption}
+  - \usepackage{longtable}
+  - \usepackage{lipsum, booktabs, colortbl, array}
+  - \captionsetup[figure]{labelfont=bf}
+  - \renewcommand{\textflush}{flushepinormal}
+  - \renewcommand{\epigraphflush}{center}
+  - \setlist{listparindent=\parindent, parsep=0pt}
+  - \doublespacing
+  - \usepackage{indentfirst}
+  - \setlength\parindent{24pt}
+  - \setlength{\parskip}{0.5mm}
+  - \usepackage[bottom]{footmisc}
+  - \renewcommand{\footnotelayout}{\setstretch{1.05}}
+  - \usepackage{dcolumn}
+  - \usepackage{hhline}
+---
+
+\pagebreak
+
+\setcounter{tocdepth}{4}
+\tableofcontents
+
+```{r setup, echo=F, message=F, warning=F}
+library(tidyverse)
+library(magrittr)
+library(rsvd)
+library(ggpubr)
+library(patchwork)
+library(here)
+
+# Document settings
+theme_set(theme_bw())
+knitr::opts_chunk$set(warning=FALSE, message=FALSE, echo=FALSE,  # don't pollute the PDF with error messages
+                      cache=TRUE, cache.lazy=FALSE, eval=FALSE,  # don't rerun the analysis unless eval=T
+                      dpi=300, fig.height=9)  # figure settings
+set.seed(271828)
+```
+
+## Materials and methods
+
+### Analytic procedure
+
+The embeddings used in the paper are publicly available GloVe embeddings of Wikipedia [@rodriguez2023multilanguage]. Table S2 provides the keyword lists. To ensure the word embedding vocabularies support each analysis, I manually adjust the spelling of some of the words in the original paper [@caliskan2017semantics]. A summary of these adjustments in each set of embeddings is also provided in Table S2. This is particularly important for the list of Black names derived from the IAT [@greenwald1998measuring], because many of the names in this word list appear to be misspellings and/or close mispronunciations of Black names that are more common in the US context. For example, the list includes the common Arabic given name "Aiesha," but a far more common spelling of this name in the US context is "Aisha." The misspellings considerably affect the implementation of WEAT 3 in particular.
+
+I reproduce the results in two alternative publicly available word embedding matrices: the Stanford NLP GloVe embeddings of Wikipedia 2014 and Gigaword 5 text [@pennington2014glove], and the skip-gram negative sampling (i.e. word2vec) embeddings of Google News text [@mikolov2013distributed]. Figures S1-S3 rerun the figures in the paper with the word2vec embeddings; Figures S4-S6 rerun the figures with the Stanford NLP GloVe embeddings. Note that the substantive meaning of the cosine similarity metric differs somewhat between the two spaces because the GloVe embeddings use the $W+C$ representation and the word2vec embeddings use only the $W$ matrix.
+
+### Computing the canonical subspace metric
+
+The metric can be computed in \texttt{R} using the built-in CCA function \texttt{cancor} with the centering parameters set to False. In practice, if the canonical congruences are not of direct interest for the analysis (i.e. we only want to quantify the total amount of commonality), then it is not necessary to compute a singular value decomposition. Instead, it is faster to sum all of the values in the matrix obtained by computing the Hadamard (entrywise) product of the two projection matrices.
+
+## Supplementary text
+
+### On cosine similarity
+
+Cosine similarity in the usual sense is a ratio of the Euclidean dot product between two vectors to the scalar product of their Euclidean norms: $\vec{x} \cdot \vec{y} / ||\vec{x}||_2||\vec{y}||_2$. It measures the amount of covariance between the two vectors that is in excess of what would be expected if they were independent. It can be interpreted as the amount of information retained when projecting one word vector onto the span of the other. Although the term "cosine similarity" is the most popular term for this metric, this moniker hides quite a bit of information about what it is used to measure, particularly when the arguments are transformed in various ways.
+
+The widespread use of cosine similarity in the statistical measurement of word associations is attributable to the influential work of Gerard Salton and colleagues on information retrieval in large text document databases [@salton1989automatic]. However, there is a subtle but importance difference in research goals between the two enterprises. Information retrieval is concerned with optimizing search procedures, so it does not place very much weight on *how* the search is performed as long as it performs well --- that is, we care about what we retrieve, and how we retrieve it is only interesting if it works. In contrast, the measurement of word associations in the social sciences is more or less pursuing the opposite goal: what we retrieve is only interesting insofar as we have a measure of the thing we are interested in. Cosine similarity is a satisfactory plug-in heuristic for a range of prediction problems, but once we are interested in measurement, we must be much more precise about the relationship between what we mean and what our metrics say--- particularly if we are interested in many-to-many comparisons.
+
+Researchers frequently describe cosine similarity as "the dot product of the vectors after they have been normalized to unit length" [@caliskan2017semantics, @turney2010frequency] but this statement is very misleading because the normalization operator is non-Euclidean. *Cosine similarity does not define an inner product space over the input word vector space*. Adding estimated cosine similarites does not consistently aggregate information about linear combinations of the component vectors. The cosine similarity space $\{W, \text{Sim}_\text{cos} \}$ is a transformation of the usual inner product space defined by the Euclidean dot product $\{W, \cdot\}$ such that every point on the bilinear form is locally weighted by $1/\sqrt{\left<W_a,W_a\right>\left<W_b,W_b\right>}$. This space is scale invariant and linear in each argument only under a stringent condition on $W$: the Euclidean dot product between two vectors must equal negative one-half their respective norms everywhere in the vector space:
+
+$$
+\begin{aligned}
+\varphi(A+B, C) &= \frac{\sum_{i}(A_i+B_i)(C_i)}{\sqrt{\sum_i(A_i+B_i)^2}\sqrt{\sum_i(C_i)^2}} \\
+&= \frac{\sum_{i}(A_i+B_i)(C_i)}{Q_{\varphi}(A+B, C)}\\
+&= \frac{\sum_{i}(A_iC_i+B_iC_i)}{Q_{\varphi}(A+B, C)}\\
+&= \frac{\sum_{i}A_iC_i} {Q_{\varphi}(A+B, C)}+\frac{\sum_{i}B_iC_i}{Q_{\varphi}(A+B, C)}.\\
+\\
+Q_{\varphi}(A+B, C)^{-1} &= \sqrt{\sum_i(A_i+B_i)^2}\sqrt{\sum_iC^2_i}\\
+&= \sqrt{\sum_i(A^2_i+B^2_i + 2A_iB_i)}\sqrt{\sum_iC^2_i}\\
+&= \sqrt{\sum_iA^2_i+\sum_iB^2_i + 2\sum_iA_iB_i}\sqrt{\sum_iC^2_i} \\
+&= \sqrt{||A||^2_2+||B||^2_2 + 2\left<A, B\right>}||C|| \\
+&= g^*(A, B) ||C||. \\
+& g^*(A, B) = ||A|| = ||B|| \text{ if and only if }\left<A, B\right> = -\frac{1}{2}||A||^2 = -\frac{1}{2}||B||^2\\
+\\
+\varphi(\lambda A, B) &= \frac{\sum_{i}(\lambda A_iB_i)}{\sqrt{\sum_i (\lambda A_i)^2}\sqrt{\sum_i B_i^2}} \\
+&= \frac{\lambda \sum_{i}(A_iB_i)}{\sqrt{\sum_i (\lambda A_i)^2}\sqrt{\sum_i B_i^2}} \\
+&= \frac{\lambda \sum_{i}(A_iB_i)}{\sqrt{\sum_i \lambda^2 (A_i)^2}\sqrt{\sum_i B_i^2}} \\
+&= \frac{\lambda \sum_{i}(A_iB_i)}{\lambda \sqrt{\sum_i (A_i)^2}\sqrt{\sum_i B_i^2}} \\
+&= \frac{{\color{red}{\cancel{\lambda}}} \sum_{i}(A_iB_i)}{{\color{red}{\cancel{\lambda}}} \sqrt{\sum_i (A_i)^2}\sqrt{\sum_i B_i^2}} \\
+\end{aligned}
+$$
+
+A shorthand for this assumption is that the vector space must be *isotropic*. This identifies the fundamental problem with the quantity $\text{WEAT}(X, Y)$: addition and multiplication over cosine similarities are not defined in the conventional way unless $W$ is isotropic, and it is not possible for $W$ to be isotropic. To see why, define the index of isotropy $\text{Iso}(X)$ to be the dimension of the largest isotropic subspace of $X$ [@milnor1973symmetric, p. 56--57]. To establish that an inner product space is anisotropic with respect to the inner product operator $Q_\psi$, it suffices to show that $\text{Iso}(X) = 0$, i.e., that $X$ contains no self-orthogonal subspaces of dimension 1. This condition holds trivially for all popular word embedding models because their codomain is $\mathbb{R}^p$, so the dot product between any vector and itself is strictly greater than zero.
+
+Applying the arithmetic mean to $\text{Sim}_\text{cos}$ despite this contradictory premise has an important substantive consequence: adding words to the inducing keyword lists always moves the representation toward generality rather than specificity. As $k$ increases, the mean cosine similarity converges in probability to the expected cosine between two vectors in $\mathbb{R}^p$ irrespective of the specific choice of input subspaces and basis dimensionality. Logically, this is the opposite of what we want the metric to do. The number of ways a set can be partitioned is proportional to the cardinality of the set. As we add more words to a word list, the number of ways that they can be similar increases, in addition to changing the total amount of similarity in the set. Consequently, if the word list is converging to a specific concept, we should gain *more information* about what we mean by adding to the word list, and not less.
+
+In practice, researchers sometimes design WEAT-like analyses with two modified versions of the MCS metric. First, the original metric takes the grand mean of the matrix of cosine similarities between $A$ and $B$, so each word vector $A$ occurs in $k$ comparisons. Researchers sometimes employ a **paired estimator** $\text{WEAT}_1(A, B)$ that uses only a one-to-one comparison between the subspaces, so that each word vector occurs in just one angle. Second, the original measure constructs the matrix of cosine similarities with respect to each vector in $A$ and $B$ separately. Researchers sometimes use the **centroid estimator** $\text{WEAT}_k(A, B)$ that substitutes the centroid $\mathbf{C}(B)$ for $B$ so that the score reflects the mean cosine similarity of every vector in $A$ with $\mathbf{C}(B)$. In this section I denote the original estimator $\text{WEAT}_0(A, B)$ to reduce ambiguity. I discuss the relationship between all of these modeling decisions and the notion of "frequency bias" in much greater detail below.
+
+Both methods introduce additional drawbacks. In particular, the centroid estimator $\text{WEAT}_k(A, B)$ is a poor representation of the subspace in high dimensions. Locally, for all subspaces $A$ the centroid for $B$ does not induce a separable neighborhood with respect to $A$. Define the local neighborhood of $\mathbf{C}(B)$ to be the rank-ordered vector of cosine similarities between $\mathbf{C}(B)$ and $A \cup B$, and define $\text{Sep}(A | \mathbf{C}(B)) = \inf_i \text{rank} (\cos \mathbf{C}(B), A_i)$ to be the smallest rank statistic of this neighborhood corresponding to a vector in $A$. The distribution of $\text{Sep}(A | \mathbf{C}(B))$ is parameterized by $k$. Globally, the centroid is not especially close to its subspace in high-dimensional vector spaces. The number of multidimensional subspaces that are closer to $\mathbf{C}(B))$ than $B$ is $\frac{(n_B-1)!}{k!(n_B-1-k)!}$, where $n_B$ is the number of word vectors $W_x \in W$ satisfying $\cos(\mathbf{C}(B)), W_i) > \sup_i \text{rank} \cos(\mathbf{C}(B)), B_i)$. For example, if $k=2$ and there are two vectors in closer alignment with the centroid than the less associated of the two subspace vectors, there is one subspace closer to the centroid than $B$. This number grows very quickly in $n_B$ and $k$. This problem originates because the centroid is not on the hyperelliptical manifold defined by the input vectors.
+
+Numerically, the paired estimator $\text{WEAT}_1(A, B)$ often fares somewhat better than the typical metric, because it reduces the impact of overcounting high-similarity word pairs on the analysis. However, this comes at a steep cost: this estimator is not invariant to permutations of the input keyword lists. Thus we will get a different answer if we use (say) $\{\text{he, him, his, himself}\}$ or $\{\text{he, him, himself, his}\}$.
+
+There are parametric significance tests for dependent correlation and congruence coefficients based on the Fisher $Z$-transformation [@korth1975distribution, @steiger1980tests, @bedeian1988significance, @meng1992comparing, @bond2004seeing]. In the paper, I prefer to compare each metrics to the 95% prediction interval obtained by randomizing one or both of the input word lists. There are two reasons for this. First, I think the comparison to randomization provides a more intuitive way of understanding uncertainty in the word association problem than the distributional result. For example, the prediction intervals could be discretely interpolated toward the observed metric by randomizing only a subset of the words in either list; this could be used to ascertain the leave-one-out sensitivity of the comparison. Second, because the input metric is intrinsically multidimensional, our uncertainty about it is also hypervolumetric; treating our uncertainty about the canonical subspace metric as a scalar interval obscures this fact.
+
+
+### On IAT keyword lists
+
+The scientific provenance of the WEAT keyword lists reveals some conceptual ambiguity in the relation between word lists and their labels. The lists are derived from keyword lists used in the IAT [@greenwald1998measuring, @nosek2002harvesting]. The keyword lists for "pleasantness" were taken from a study of word association ratings elicited from college students in the mid-1980s [@bellezza1986words]. These words were in turn derived from a book of word frequencies authored in the 1940s [@thorndike1944teacher]. They narrowed down the initial list by having students rate each word using a pleasant-to-unpleasant Likert item for each word. Other word lists were taken from an earlier study of college students published in 1969 [@battig1969category]. In this study, the procedure is reversed: students are given the category word only, and are asked to write down related words for 30 seconds. Consequently, in some cases we have gone from category label to keyword list, and in other cases we have gone from keyword list to category label. This raises the question why the label is treated as a category or concept to which the other words belong, and not as just another word.
+
+
+### Frequency bias in cosine similarity regression
+
+Previously, some researchers have observed that WEAT-like measures are predictable from the underlying word frequency information. This is often called *frequency bias*. This section characterizes the frequency bias phenomenon in a wide range of regression model specifications using the normalization weight function. In general, frequency bias is a problematic way of describing the distortion in the estimator. In particular, for most applications the corpus frequency has already been used to estimate the word embeddings, so predicting the MCS metric from frequency is in some sense double-dipping into the data. More to the point, the problem is not really that the measure is *biased* by frequency per se, but that it is not a consistent estimator for the quantity it aims to estimate. The frequency-predictable distortion in regression models employing the MCS metric as a variable is better understood as a prevalent symptom of this more fundamental validity issue.
+
+I begin with the simplest case (one cosine similarity) and add analytic complexity progressively to explore the class of cosine similarity regressions (CSR). For the most part researchers have been using the more complex models; the binary case is useful for understanding where the model begins to distort. I discuss three subclasses of the model family in more depth:
+
+\begin{enumerate}
+\item The \textbf{centroid} cosine similarity regression comparing estimated word vectors to Euclidean centroids of sets of vectors;
+\item The \textbf{overlapping} cosine similarity regression, in which the same vector appears in more than one cosine in the outcome; and
+\item The \textbf{multivariate} cosine similarity regression incorporating at least one cosine-valued independent variable, potentially implying additional overlap structures and subspace isotropy assumptions.
+\end{enumerate}
+
+Each of these design choices results in a measurement model that makes strong assumptions about the geometric relationship between the vectors that are chosen for analysis, and combining them results in a much more complex pattern of frequency distortion. Although I employ an omitted variable bias perspective to characterize the econometric properties of these models, I hasten to emphasize that this perspective is a bit misleading, as it is not really possible to "correct" the "bias" without using a different metric.
+
+#### Binary difference-in-cosines.
+
+In the simplest case researchers may wish to compare a set of cosine similarities constructed between two overlapping or analogous sets of word pairs (i.e., three or four sets of word vectors). I first discuss the non-overlapping case involving cosines with no recurring component vectors. The most basic summary quantity is the difference in mean cosine similarity, $\cos(A_i, B_i) = \alpha^*_0 + \alpha^*_1X_i + \epsilon_i$, where $X_i$ is a binary variable partitioning the word pair sets. The estimated coefficient $\alpha^*_1$ is interpreted as a potentially significant difference in the mean cosine similarity, indicating a substantively meaningful difference in linguistic association between the two groups.
+
+The binary difference-in-cosines is a limiting case of a general relative similarity model where distances in the inner product space are evaluated relative to its $\ell_2$ projection. Estimating this model implies two very strong assumptions about the error distribution of the inner product: its distribution with respect to the overall scale of the vector space, and its distribution in the subspaces on each side of the analysis. This can be seen more transparently by multiplying both sides of the model equation by the normalization weight $\text{LNW}_i$, which describes the scale of the association at every point in the vector space:
+$$
+\begin{aligned}
+\cos(A_i, B_i) &= \alpha^*_0 + \alpha^*_1X_i + \epsilon_i \\
+\frac{\left<A_i,B_i\right>}{\text{LNW}_i} &= \alpha^*_0 + \alpha^*_1X_i + \epsilon_i \\
+\left<A_i,B_i\right> &= \alpha^*_0\text{LNW}_i + \alpha^*_1X_i\text{LNW}_i + \epsilon_i\text{LNW}_i \\
+\left<A_i,B_i\right> &= \alpha^*_0\text{LNW}_i + \alpha^*_1X_i\text{LNW}_i + \epsilon_i\text{LNW}_i \\
+&+ \color{red}{\alpha^*_2 + \alpha^*_3X_i} \\
+\end{aligned}
+$$  
+The constrained model omits the two terms highlighted in red by fixing them to 0: an intercept term $\alpha^*_2$ and a term for the main effect of $X$; estimating the original model $\alpha^*_3$. It also implicitly assumes that the error term $\epsilon_i$ has scale-dependent error. Most importantly, the interpretation of the $\alpha^*_1$ is revealed to be (under most conditions) an estimate of a linear interaction between the normalization weight function and the input partition.
+
+There are a few interconnected problems with the model as an estimator of $\alpha^*_1$ that can be characterized from an omitted variable bias perspective [@firebaugh1985user, @firebaugh1986using, @kronmal1993spurious, @bartlett2020ratio]. First, the missing intercept term $\alpha^*_2$ forces the line of best fit to pass through the origin. This leads to poor model fit in most practical data analysis settings. When working with word vectors, the distribution of vector norms is bounded away from zero, so this constraint lies strictly outside the support of the data. Additionally, the inner product is only small/negative when the normalization weight is increasing, meaning the implicit frequency adjustment estimated by cosine similarity regression tends to have the wrong sign. The variance of the model is also likely to be high due to its strong dependence on the observations with large outlying errors on the tails of the normalization weight distribution.
+
+Second, the missing main effect term $\alpha^*_3X_i$ distorts the estimated difference in means by requiring the trends in each group to converge at the intercept. This also forces the groupwise normalization weighting estimates to have the same sign. In practice this can result in a global normalizing adjustment that is nearly orthogonal to the \textit{local} (subspace-specific) conditional distribution of the inner product in $\ell_2$. This constraint also implies a conditional difference in means that is maximally distinct when the normalization weight increases. This tends to be the opposite of what we see in semantic vector spaces; we observe a wider range of inner product values when the normalization weight is low, and the scale-conditional difference tends to be driven by the low-norm-weight vectors. In practice, the difference in the marginal distribution of the inner product of a set of points with two focal vectors tends to be close to zero, particularly if the number of vectors in the analysis is small.^[This provides some intution for why centering the vector space is a very effective way of improving the meaningfulness of cosine-based measures: both of these model constraints are more reasonable when the vector space passes through the origin.]
+
+A generalized (unconstrained) model of the conditional association, the *local inner product regression*, allows the missing intercept and main effect terms to covary with the inner product:  
+$$
+\begin{aligned}
+\left<A_i,B_i\right> &= \beta_0 + \beta_1X_i + \beta_2\text{LNW}_i + \beta_3X_i\text{LNW}_i + v_i \\
+\end{aligned}
+$$  
+Note that in this model the focus is no longer on the coefficient on $X_i$, as in the cosine similarity regression model. In practice there are a large range of values of $\beta_1$, but the estimate tends to be high-variance. Instead, the target of inference is the interaction effect $\beta_3$, which tells us how different the distance-size relationship is between the two groups. Informally, the model estimates a difference in the total amount of association between two sets of vector pairs dictated by the comparative design $X$ that corrects for the conditional dependence of the inner product distribution on the vector norm distribution due to the design. The coefficients $\beta_2$ and $(\beta_2 + \beta_3)$ can be interpreted as an estimate of the mean "similarity" (i.e. the mean distance-size association) in the two groups, and $\beta_3$ reflects the difference in the size of this relationship.
+
+A closely related specification adds an interaction with the inverse normalization weight into the original model with cosine similarity as the dependent variable:
+$$
+\begin{aligned}
+\cos(A_i,B_i) &= \beta_2 + \beta_3X_i + \beta_0\frac{1}{\text{LNW}_i} + \beta_1\frac{X_i}{\text{LNW}_i} + \eta_i \\
+\end{aligned}
+$$
+The numbering of the coefficients reflects the relationship between this model and the inner product regression coefficients; both equations estimate the same model, although each model imposes a different interpretation on the coefficients that correspond to each other: $\beta_1$ and $\beta_3$ swap interpretations as the coefficient on the grouping variable $X$ and the coefficient on the group-scale interaction term, while $\beta_0$ and $\beta_2$ swap interpretations as the intercept and the coefficient on the scaling variable. The key difference in the models is whether the estimation focuses on the normalization weight or its reciprocal, equivalent to deciding whether the analysis should be performed on the original vector space or its canonical cosine-normalized projection.
+
+An advantage of this corrected ratio model is the error term $\eta_i$. The error term of the inner product regression is by assumption a function of the normalization weight ($v_i = \epsilon_i\text{LNW}_i$) whereas the corrected model need not make this assumption [@firebaugh1986using]. This means that the inner product regression is typically the more heteroskedastic estimator. In general the two models give similar results, so the practical implications of this difference are small, although the fit of one model tends to be better. When the inner product regression is preferable, a heteroskedasticity correction can be employed to compute standard errors. Researchers can also directly examine the change in error variance over the normalization weight distribution using the typical Lagrange multiplier test or a related analysis [@breusch1979simple, @cook1983diagnostics, @western2009variance].
+
+A natural next question is whether the lower-order terms for the vector norms that make up the local normalization weight should be included in the model. Depending on the research design this may introduce exact multicollinearities into the corrected inner product regression.  A common issue is that the researcher has chosen sets of word vectors that imply different relative word frequency distributions, leading to the commonly observed "frequency bias" in the measure [@antoniak2018evaluating, @ethayarajh2019understanding, @van2022negative]. In practice the similarity structure determines how this frequency heterogeneity impacts the estimate of interest. This is because the design of the comparison may lead to word vectors and their norms reoccurring in multiple model terms. I will discuss this issue further as it arises in the context of other models in the cosine similarity regression family.
+
+#### Some useful decompositions.
+
+*Total scale distortion.* The frequency-related distortion between $\beta_1$ and $\alpha^*_1$ can be decomposed into terms reflecting the contribution of the omitted intercept and the omitted main effect of the grouping variable, modified by the partial effect on the outcome of, respectively, the normalization weight function and the group-conditional normalization weight function [@bartlett2020ratio]:
+$$
+\alpha^*_1 = \beta_1 + \beta_2\left(\frac{cov(X_i, \frac{1}{\text{LNW}_i})}{var(X_i)}\right) + \beta_3\left(\frac{cov(X_i, \frac{X_i}{\text{LNW}_i})}{var(X_i)}\right)
+$$  
+The decomposition shows why it is usually helpful to think of the relationship to frequency in terms of distortion rather than as a bias in the model per se. Even in the simplest case, there are multiple sources of distortion that can cancel out or amplify depending on the particular dataset we happen to be working with. This means that the coefficient $\alpha^*_1$ can be close to $\beta_1$ even when the amount of distortion due to each omission is comparatively large. Typically $\beta_2$ and the lower-order partial effect are positive, so this situation arises when the signs of $\beta_3$ and $cov(X_i, \frac{1}{\text{LNW}_i})$ conflict. The absolute amount of distortion is usually a better measure of total "bias" than the equation above suggests due to this property of the uncorrected ratio model. In practice, because researchers construct more complex word association models, this can be difficult to tease apart analytically.
+
+*Local similarity estimation.* The inner product regression model factors out a subspace-specific proportion of the inner product that is (by assumption) not predictable from the normalization weight distribution. This quantity is like cosine similarity, but comes with estimate of the amount each group of inner products should be discounted prior to applying a similarity interpretation. To see this, consider the inner product regression model when $X_i = 0$: $\left<A_i,B_i\right> = \beta_0 + \beta_2\text{LNW}_i + v_i$. This model implies that up to some error and minus an estimated adjustment $\beta_0$, $\left<A_i,B_i\right> \propto \beta_2\text{LNW}_i$. ($\beta_1$ and $\beta_3$ provide the additive intercept and slope changes for the $X_i = 1$ case.) In other words, by moving the normalization weight function to the other side of the model, the analysis pivots to estimating two different similarity functions over the local inner product subspaces implied by each group of vectors, rather than assuming that these distributions are known in advance.
+
+This partition of the inner product suggests conceptualizing similarity as an operation that discounts the estimated inner product by some group-specific amount and applies the normalizing projection only to the proportion of the variation in the inner product that we have estimated we can attribute to the variation in normalization weights. An observation-wise similarity coefficient can be produced by subtracting the estimated group-specific intercept of the inner product regression from each observation's inner product, then dividing this quantity by the normalization weight for this observation:  
+$$
+\text{sim}_{local}(A_i, B_i) = \frac{\left<A_i, B_i\right> - (\beta_0 + \beta_1X_i)}{||A_i||||B_i||}
+$$  
+The difference between this quantity and $\cos(A_i, B_i)$ is a curvilinear function of the normalization weight (recall the dual interpretation of $\beta_0$ as the lower-order normalization weight coefficient in the ratio model), and the lower-order coefficient on the normalization weight in the component model $\beta_2$ is an estimate of the mean of this distribution. Notice that $\text{sim}_{global}(A_i, B_i) = (\beta_0 + \beta_1X_i)/||A_i||||B_i||$ is also a similarity coefficient. In other words, another way of writing the cosine similarity when there is a known grouping is in terms of a decomposition into a local similarity component and a global discrepancy component that can be estimated from the data:  
+$$
+\cos(A_i, B_i) = \text{sim}_{local}(A_i, B_i) + \delta(A_i, B_i)
+$$  
+Assuming that $\beta_0 = \beta_1 = 0$ in the uncorrected cosine similarity regression forces the second similarity term to zero. This amounts to an assumption that all of the similarity between A and B must be related to the grouping variable. The main consequence of this assumption is that $\cos(A_i, B_i)$ is always inflated with respect to the grouping if the ratio is computed in the global basis. Employing the corrected model makes it possible to recover an estimate of $\text{sim}_{local}(A_i, B_i)$ that allows some of the global similarity to be unrelated to the local comparison the model is meant to test.
+
+#### Weight function measurement error.
+
+A recurrent feature of this type of analysis is that the local normalization weight function is estimated from the same data as the inner product. One could reasonably object to this procedure. In the context of regression analysis, when the local normalization weight is introduced into the other side of the model, the model fit will usually increase (depending on sample size, etc.). Some of this added explanatory power is due to the fact that the normalization projection errors are correlated.^[A closely related issue is that word embedding analyses are sensitive to the intrinsic frequency-based selection in the word count sampling procedure. The large number of low-frequency words implies an unobserved set of related words that could have been included, and there is a steep bias-variance tradeoff involved in selecting the minimum frequency window. Both issues motivate considering an external word frequency estimate. Researchers usually use the observed word count above a threshold in a corpus of documents as a plug-in estimate of the probability of observing a word, but this estimate is itself frequency-dependent because there is heightened measurement error in the low frequency region and a sharp discontinuity at the threshold. The threshold is the part of the remaining vector space that is the most affected by the size-biased sampling problem. An implication of this idea is that cutting off the model at a fixed threshold can seriously impact the qualitative interpretation of the model, because this region of terms is also more specific on average. When the research goal is to measure concepts by identifying subspaces of the vector space, it is important to consider how qualitative interpretations of this space are affected by perturbations to this threshold. Additionally, denominator measurement error results in biased estimates, particularly when it is associated with $X_i$ [@casson1973linear, @bartlett2020ratio]. This situation also creates difficulties for frequency adjustment because we do not usually have an external *group-specific* frequency estimate. In general researchers should prefer the heteroskedastic estimator because this model expresses an expectation that a similarity measure over word vectors "should" have frequency-dependent projection errors.] External estimates of word frequency (e.g. the Corpus of Contemporary American English) can be used to show that using external word frequency information results in qualitatively similar but high-variance point estimates of the inner product regression model. Consequently researchers will tend to see a considerable jump in $\text{R}^2$ and changes in the substantive and statistical significance of estimated quantities of interest when any credible estimate of word frequency is added.
+
+#### Centroid cosine similarity regression.
+
+In applied settings, researchers tend to operationalize concepts of interest by using fixed word lists to induce an entire set of related word vector pairs. To represent concepts as discrete mathematical objects, researchers aggregate the set of vectors that results from a word list into a centroid and use the cosine similarity to it as a quantity of interest. To continue our gender-sentiment analysis example from above, we would now be interested in estimating quantities involving (say) $\cos(\Omega(A_{masculine}), B_{unpleasant})$ and $\cos(\Omega(A_{feminine}), B_{pleasant})$, where $\Omega(w)$ indicates the Euclidean centroid of the corresponding vector set. This strategy appears commonly in applied settings; although tempting, in general it tends to intensify the frequency distortion relative to a direct analysis of the component vectors.
+
+Comparisons of this type can be factored into a set of inner products between the $j, k$ selected sets of component vectors in the original vector space. The case with one additional vector, $\cos(A+B, C)$, provides a useful basic case to show how this analytic choice contributes to frequency distortion. First, observe that the normalization weight function implied by adding the vectors includes the pairwise component vector inner products:  
+$$
+\begin{aligned}
+\cos(A+B, C) &= \frac{\sum_{i}(A_i+B_i)(C_i)}{\sqrt{\sum_i(A_i+B_i)^2}\sqrt{\sum_i(C_i)^2}} \\
+&= \frac{\sum_{i}(A_i+B_i)(C_i)}{\text{LNW}(A+B, C)}\\
+&= \frac{\sum_{i}(A_iC_i+B_iC_i)}{\text{LNW}(A+B, C)}\\
+&= \frac{\sum_{i}A_iC_i} {\text{LNW}(A+B, C)}+\frac{\sum_{i}B_iC_i}{\text{LNW}(A+B, C)}.\\
+\end{aligned}
+$$  
+$$
+\begin{aligned}
+\text{LNW}(A+B, C) &= \sqrt{\sum_i(A^2_i+B^2_i + 2A_iB_i)}\sqrt{\sum_iC^2_i}\\
+&= \sqrt{\sum_iA^2_i+\sum_iB^2_i + 2\sum_iA_iB_i}\sqrt{\sum_iC^2_i} \\
+&= \sqrt{||A||^2_2+||B||^2_2 + 2\left<A, B\right>}||C|| \\
+&= g(A_i, B_i)\ ||C_i||
+\end{aligned}
+$$  
+Note that $g(A_i, B_i)$ is a function of the inner product between $A$ and $B$ in addition to their respective norms. This leads to a different expansion of the uncorrected cosine model into the inner product regression:  
+$$
+\begin{aligned}
+\cos(A_i+B_i, C_i) &= \alpha^*_0 + \alpha^*_1X_i + \epsilon_i \\
+\frac{\left<A_i+B_i, C_i\right>}{\text{LNW}(A+B, C)} &= \alpha^*_0 + \alpha^*_1X_i + \epsilon_i \\
+\left<A_i+B_i, C_i\right> &= \alpha^*_0\text{LNW}(A+B, C) + \alpha^*_1X_i\text{LNW}(A+B, C) + \epsilon_i\text{LNW}(A+B, C) \\
+\left<A_i+B_i, C_i\right> &= \alpha^*_0g(A_i, B_i)\ ||C_i|| + \alpha^*_1X_ig(A_i, B_i)\ ||C_i|| + v_i \\
+&+ \color{red}{\alpha^*_2 + \alpha^*_3X_i + \alpha^*_4g(A_i, B_i) + \alpha^*_5||C_i||} \\
+&+ \color{red}{\alpha^*_6X_ig_{A,B}(A, B) + \alpha^*_7X_i||C_i||} \\
+\end{aligned}
+$$  
+Including an additional vector on one side of the cosine ratio outcome implies a model that omits four additional variables by fixing their coefficients to zero. In addition to the missing intercept and lower-order grouping variable term as in the binary analysis, a key issue is determining whether the components of the normalization weight have distinct (conditional) associations with the transformed inner product.
+
+A particularly common version of this model arises when the collection of cosine similarities is derived from comparisons of centroids composed of $j$ word vectors to members of a set of $n$ word vectors, where $|A| > |B| = 1$. (The paper by Nelson [2021] is an example of this type of model.) Extending to $j$ vectors:  
+$$
+\begin{aligned}
+\cos(A_1+...+A_j, X) &= \cos(\Omega, X) = \frac{\sum_{j}\sum_{i}(\Omega_{ji}X_i)}{\sqrt{\sum_i(\sum_j\Omega_{ji})^2}\sqrt{\sum_iX_i^2}} \\
+&\left(= \frac{\sum_{i}(A_1X_i+...+A_jX_i)}{\sqrt{\sum_i(A_1+...+A_j)^2}\sqrt{\sum_iX_i^2}} \right)\\
+\sqrt{\sum_i(\sum_j\Omega_{ji})^2} &= \sqrt{\sum_j||\Omega_{j}||^2_2 + 2\sum_{j,j*}\left<\Omega_{j}, \Omega_{j*}\right>}.\\
+\text{LNW}(\Omega, X) &= \sqrt{\sum_j||\Omega_{j}||^2_2 + 2\sum_{j,j*}\left<\Omega_{j}, \Omega_{j*}\right>}\sqrt{\sum_iX_i^2}
+\end{aligned}
+$$  
+This cosine similarity is a weighted average of the inner products between the target vector $X$ and each of the component vectors $\Omega_j$. The normalization weight is a function of the squared norms of each of the component vectors and their pairwise inner products with each other. Observe two facts about this weight. First, in each inner product the familiar normalization weight $||\Omega_{j}||||\Omega_{j*}||$ reappears again. Second, adding the $j$th word vector to $\Omega$ implies adding $j - 1$ more comparisons to the weight function. Pre-composing the word vectors in $A$ to facilitate the comparison to each $X_i$ thus implies computing all of the pairwise inner products $\left<A_i, A_j\right>$, but without accounting for the uncertainty associated with this measure. The corresponding inner product regression is as follows:
+$$
+\begin{aligned}
+\cos(\Omega_i, X_i) &= \gamma^*_0 + \gamma^*_1D_i + \epsilon_i \\
+\left<\Omega_i, X_i\right>&= \gamma_0\text{LNW}(\Omega_i, X_i) + \gamma_1D_i\text{LNW}(\Omega_i, X_i)  + v_i \color{red}{+ \gamma_2 + \gamma_3D_i} \\
+\sum_j\left<\Omega_{ji}, X_i\right>&= \gamma_0 \sqrt{\sum_j||\Omega_{j}||^2_2 + 2\sum_{j,j*}\left<\Omega_{j}, \Omega_{j*}\right>}\sqrt{\sum_iX_i^2} \\
+&+ \gamma_1D_i\sqrt{\sum_j||\Omega_{j}||^2_2 + 2\sum_{j,j*}\left<\Omega_{j}, \Omega_{j*}\right>}\sqrt{\sum_iX_i^2} + v_i \color{red}{+ \gamma_2 + \gamma_3D_i} \\
+\end{aligned}
+$$
+The left hand side of the model decomposes into a sum of the component inner products. The implicit model for a given comparison can be constructed by moving the $j-1$ alternative comparisons to the right hand side of the regression equation:
+$$
+\begin{aligned}
+\left<\Omega_{ji}, X_i\right>&= \gamma_0 \sqrt{\sum_j||\Omega_{j}||^2_2 + 2\sum_{j,j*}\left<\Omega_{j}, \Omega_{j*}\right>}\sqrt{\sum_iX_i^2} \\
+&+ \gamma_1D_i\sqrt{\sum_j||\Omega_{j}||^2_2 + 2\sum_{j,j*}\left<\Omega_{j}, \Omega_{j*}\right>}\sqrt{\sum_iX_i^2} \\
+&+ \gamma_2 + \gamma_3D_i + v_i \\
+&+ \color{purple}{\xi_1\left<\Omega_{1,i}, X_i\right> + \cdots + \xi_{j-1}\left<\Omega_{(j-1),i}, X_i\right>}
+\end{aligned}
+$$
+The inner product regression and the constrained/uncorrected model alike assume that the linked inner product coefficients are all equal; this is equivalent to assuming that the corresponding subspace is totally isotropic. Additionally, the zero conditional mean error assumption in this model also requires the errors of these distances to be mutually uncorrelated. This is a very stringent set of assumptions.
+
+Note that the frequency distortion in cosine similarity induced by pooling the $A$ vectors and constructing normalization weights in this way is not addressed by correcting the normalization weight adjustment. The reason for this is that the grouping variable $D_i$ and the centroid norm $||\Omega^{X_i}||$ are exactly collinear, implying the comparison as constructed cannot differentiate whether the coefficient $\gamma_3$ reflects the grouping of vectors $X_i$ corresponding to $\Omega^{X_i}$ or the scale of the subspace they inhabit. This relates to the question of whether a model of similarity should allow $||A||$ and $||B||$ to have separable associations with the inner product. I will discuss this issue in depth in the context of a more complex bivariate model.
+
+#### Centroid cosines are anisotropically weighted estimates of the subspace mean cosine similarity.
+
+How should researchers think about the isotropy assumption implicit in comparing quantities like $\cos(\Omega, X_i)$? One way to break down this model is to think of it as a specific *estimate* of the subspace-specific (i.e. conditional) mean cosine similarity $\mathbb{E}[\cos(\Omega_j, X_i)|J=j]$ implied by the word vectors that make up the composed vector, or alternatively $\mathbb{E}[\left<\Omega_j, X_i\right>|LNW_{ij}, J=j]$. This simple comparison clarifies what it would take for the centroid model to be no more frequency distorted than the simple mode:
+$$
+\begin{aligned}
+\cos\left(\frac{1}{N}\sum_j\Omega_{ji}, X_i\right) &= \frac{1}{N}\sum_j\cos(\Omega_{ji}, X_i) \\
+\frac{\left<\frac{1}{N}\sum_j\Omega_{ji}, X_i\right>}{||N^{-1}\sum_j\Omega_{ji}||||X_i||} &= \frac{1}{N}\sum_j\frac{\left<\Omega_{ji}, X_i\right>}{||\Omega_{ji}||||X_i||} \\
+\frac{1}{N}\sum_j\frac{\left<\Omega_{ji}, X_i\right>}{||N^{-1}\sum_j\Omega_{ji}||||X_i||} &= \frac{1}{N}\sum_j\frac{\left<\Omega_{ji}, X_i\right>}{||\Omega_{ji}||||X_i||}\\
+\frac{1}{N}\sum_j\frac{\left<\Omega_{ji}, X_i\right>}{||N^{-1}\sum_j\Omega_{ji}||} &= \frac{1}{N}\sum_j\frac{\left<\Omega_{ji}, X_i\right>}{||\Omega_{ji}||}  \\
+\frac{1}{N}\sum_j\left<\Omega_{ji}, X_i\right> &= \frac{1}{N}\sum_j\frac{\left<\Omega_{ji}, X_i\right>||N^{-1}\sum_j\Omega_{ji}||}{||\Omega_{ji}||} \\
+\end{aligned}
+$$
+The centroid cosine similarity (to a unit reference vector) is a \textit{weighted} mean of the component inner products. For the centroid to describe the subspace associations without distortion, the weights $\psi_{ij} = \frac{||N^{-1}\sum_j\Omega_{ji}||}{||\Omega_{ji}||}$ must be distributed with mean one; that is, the centroid must lie in an approximately isotropic subspace. By construction this assumption is not met in word embedding analysis. Because the scale distortion is complex, a large number of situations may result in approximately zero net bias. On average the distortion in the estimator increases with the number of components in the mean vector; mean vectors are mechanically shortened by the number of component vectors, resulting in a lower scale ratio due to the researcher's choice of subspace size (i.e. number of component vectors). The centroid cosine model tends to overstate the mean subspace cosine as a result.
+
+A minimal alternative procedure is to estimate a separate model for each of the $j$ variables in the composed vector, so that the model parameters can vary from comparison to comparison rather than presuming a single fixed parameter across the entire set. This has the advantage of considerably simplifying the interpretation of the normalization weighting procedure. The inclusion of the $\xi_j$ terms is also suggestive of the bivariate cosine regression (i.e. on average, how mutually predictable are the pairwise distances in $\Omega$ to $X$, conditional on frequency?). Alternatively, researchers could estimate a multivariate linear model with the set of inner products as the outcome vector, which combines both approaches.
+
+#### Bivariate cosine similarity regression.
+
+Researchers sometimes estimate a linear relationship between two sets of cosine similarities directly. For example, we might model the cosine similarity between masculine and pleasant words as a linear function of the similarity between feminine and unpleasant words. This leads to another set of omitted variable constraints:  
+$$
+\begin{aligned}
+\cos(A_i, B_i) &= \gamma^*_0 + \gamma^*_1\cos(C_i, D_i) + \epsilon_i \\
+\left<A_i, B_i\right>&= \gamma_0\text{LNW}(A_i, B_i) + \gamma_1\cos(C_i, D_i)\text{LNW}(A_i, B_i) + v_i \\
+&+ \color{red}{\gamma_2 + \gamma_3\cos(C_i, D_i) + \gamma_4\text{LNW}^{-1}(C_i, D_i) + \gamma_5\left<C_i, D_i\right>} \\
+&+ \color{red}{\gamma_6\left<C_i, D_i\right> \text{LNW}(A_i, B_i) + \gamma_7\frac{\text{LNW}(A_i, B_i)}{\text{LNW}(C_i, D_i)}}
+\end{aligned}
+$$
+Informally, this model creates frequency dependence due to the ratio of frequency functions on each side of the model, in addition to the intrinsic distributional shift on the left side alone. In addition to the zeroed $\gamma_2$ and $\gamma_3$ coefficients, the bivariate cosine similarity regression omits terms for the lower-order components of the right cosine ($\gamma_4$, $\gamma_5$). Additionally, $\gamma_6$ captures the potential interaction of the right inner product with the left normalization weight; intuitively, this is an estimate of how different we think the distance association is at different locations in the left frequency distribution. Analogously, $\gamma_7$ assesses whether there is a difference in the scale association over the distribution of left normalization weights. These terms are particularly important to include if the dependent and independent cosines share a component word vector (i.e. if the incorrect specification is of the form $\cos(A_i, B_i) = \gamma^*_0 + \gamma^*_1\cos(A_i, C_i) + \epsilon_i$). This occurs often in applied settings. I discuss this model in more detail below.
+
+#### Bivariate centroid cosine similarity regression.
+
+The composed cosines $\Omega^{\circ}$ can be substituted into the bivariate cosine regression to yield a combined model:
+
+$$
+\begin{aligned}
+\cos(\Omega^{A}, Y_i) &= \gamma^*_0 + \gamma^*_1\cos(\Omega^{B}, X_i) + \epsilon_i \\
+\left<\Omega^{A}, Y_i\right>&= \gamma_0\text{LNW}(\Omega^{A}, Y_i) + \gamma_1\cos(\Omega^{B}, X_i)\text{LNW}(\Omega^{A}, Y_i) + v_i \\
+&+ \color{red}{\gamma_2 + \gamma_3\cos(\Omega^{B}, X_i) + \gamma_4\text{LNW}^{-1}(\Omega^{B}, X_i) + \gamma_5\left<\Omega^{B}, X_i\right>} \\
+&+ \color{red}{\gamma_6\left<\Omega^{B}, X_i\right> \text{LNW}(\Omega^{A}, Y_i) + \gamma_7\frac{\text{LNW}(\Omega^{A}, Y_i)}{\text{LNW}(\Omega^{B}, X_i)}}
+\end{aligned}
+$$
+Each of the right-hand inner product terms ($\gamma_1, \gamma_3, \gamma_5, \gamma_6$) decomposes further into a sum of componentwise inner products (teal terms below). In the uncorrected model all but $\gamma_1$ are zeroed out, but otherwise each of these coefficients is forced to be equal across the marginal and joint inner product and left-hand normalization weight distributions. Additionally, the model incorporates a left-hand centroid, so the isotropy constraint applies here as well (purple).
+$$
+\begin{aligned}
+\left<\Omega^{A}_j, Y_i\right>&= \gamma_0\text{LNW}(\Omega^{A}, Y_i) + v_i \\
+&+ \color{red}{\gamma_2 + \gamma_4\text{LNW}^{-1}(\Omega^{B}, X_i) + \gamma_7\frac{\text{LNW}(\Omega^{A}, Y_i)}{\text{LNW}(\Omega^{B}, X_i)}} \\
+&+ \color{teal}{\gamma_1\cos(B_1, X_i)\text{LNW}(\Omega^{A}, Y_i) + \gamma_1\cos(B_2, X_i)\text{LNW}(\Omega^{A}, Y_i) + ...} \\
+&+ \color{teal}{\gamma_3\cos(B_1, X_i) + \gamma_3\cos(B_2, X_i) + ...} \\
+&+ \color{teal}{\gamma_5\left<B_1, X_i\right> + \gamma_5\left<B_2, X_i\right> + ...}  \\
+&+ \color{teal}{\gamma_6\left<B_1, X_i\right> \text{LNW}(\Omega^{A}, Y_i) + \gamma_6\left<B_2, X_i\right> \text{LNW}(\Omega^{A}, Y_i) + ...} \\
+&+ \color{purple}{\xi_1\left<\Omega^A_{1,i}, X_i\right> + \cdots + \xi_{j-1}\left<\Omega^A_{(j-1),i}, X_i\right>}
+\end{aligned}
+$$
+
+
+#### Overlapping cosine similarity regression.
+
+Up to this point I have assumed that the underlying word vector sets are non-overlapping, but in practice researchers often construct overlapping comparisons, for example the comparative association of masculine words with pleasant or unpleasant words. The behavior of the model when the cosines on each side of the model share a reference vector ($Y_i = X_i$) is of special interest. This is a common setup when the interest is in comparing how two concepts (represented by a set of vectors or a composed vector) relate to a common set of words. The dependence structure in the local normalization weight function implies that the lower-order interactions $D_i||w_i||$ and $D_i||X_i||$ and the main norm terms $||w_i||$ and $||X_i||$ are of interest. In addition the model assumes that the difference in distances is completely controlled by the distance-scale association and that this association passes through the origin, as in the simple case:
+
+$$
+\begin{aligned}
+\cos(w_i, X_i) &= \alpha^*_0 + \alpha^*_1D_i + \epsilon_i \\
+\left<w_i, X_i\right> &= \alpha^*_0\text{LNW}_i + \alpha^*_1D_i\text{LNW}_i + \epsilon_i\text{LNW}_i \\
+\left<w_i, X_i\right> &= \alpha^*_0\text{LNW}_i + \epsilon_i\text{LNW}_i \\
+&+ \color{blue}{\alpha^*_1D_i||w_i||||X_i||} \\
+&+ \color{red}{\alpha^*_2 + \alpha^*_3D_i} \\
+\end{aligned}
+$$
+A key limitation of the computation of the score is that it does not allow the contribution of the $||w_i||$ term to vary; this makes the normalization weight terms of each individual difficult to interpret on their own, because the lack of variance in the vector set implies we cannot estimate the uncertainty associated with applying the norm weight in each model. The WEAT statistic $S(X, Y, A, B)$ compares the difference in means of the vectors of uncorrected interaction coefficients $\alpha^*_1(i), \alpha^*_1(j)$ across the word sets $X(i)$ and $Y(j)$, resulting in a nested linear model. The sampling distributions of these coefficients are bilinearly correlated, and each of the word sets generally imply different frequency distributions. This complex dependency structure in the resulting nested model propagates the distortion in the component scores.
+
+#### Overlapping bivariate centroid cosine similarity regression.
+
+Overlap may occur in the multivariate and centroid models separately. For conciseness, I discuss only their joint interaction with overlap and do not comment on the separate cases (overlapping centroid CSR; overlapping multivariate CSR). Continuing the previous example, we may wish to compare two centroids $\Omega^A$ and $\Omega^B$ to the same set of vectors $X$. The data for this comparison consist of a set of pairwise overlapping cosines, $\{\cos(\Omega^A, X_i), \cos(\Omega^B, X_i)\}_i$, and the corresponding normalization weights are $\{||\Omega^A||||X_i||, ||\Omega^B||||X_i||\}_i$. The key phenomenon to observe in the model is that the normalization weight factor for the word vector $X_i$ cancels from the scale ratio terms with coefficients $\gamma_1$ and $\gamma_7$ (orange):
+$$
+\begin{aligned}
+\cos(\Omega^{A}, X_i) &= \gamma^*_0 + \gamma^*_1\cos(\Omega^{B}, X_i) + \epsilon_i \\
+\left<\Omega^{A}_j, X_i\right>&= \gamma_0\text{LNW}(\Omega^{A}, X_i) + v_i \\
+&+ \color{red}{\gamma_2 + \gamma_4\text{LNW}^{-1}(\Omega^{B}, X_i)} \\
+&+ \color{teal}{\gamma_3\cos(B_1, X_i) + \gamma_3\cos(B_2, X_i) + ...} \\
+&+ \color{teal}{\gamma_5\left<B_1, X_i\right> + \gamma_5\left<B_2, X_i\right> + ...}  \\
+&+ \color{teal}{\gamma_6\left<B_1, X_i\right> \text{LNW}(\Omega^{A}, Y_i) + \gamma_6\left<B_2, X_i\right> \text{LNW}(\Omega^{A}, Y_i) + ...} \\
+&+ \color{purple}{\xi_1\left<\Omega^A_{1,i}, X_i\right> + \cdots + \xi_{j-1}\left<\Omega^A_{(j-1),i}, X_i\right>} \\
+&+ \color{orange}{\gamma_1\frac{\left<\Omega^{B}, X_i\right> \sqrt{\sum_j||\Omega^{A}_{j}||^2_2 + 2\sum_{j,j*}\left<\Omega^{A}_{j}, \Omega^{A}_{j*}\right>}\cancel{\sqrt{\sum_iX_i^2}}}{ \sqrt{\sum_j||\Omega^{B}_{j}||^2_2 + 2\sum_{j,j*}\left<\Omega^{B}_{j}, \Omega^{B}_{j*}\right>}\cancel{\sqrt{\sum_iX_i^2}}}} \\
+&+ \color{orange}{\gamma_7\frac{\sqrt{\sum_j||\Omega^{A}_{j}||^2_2 + 2\sum_{j,j*}\left<\Omega^{A}_{j}, \Omega^{A}_{j*}\right>}\cancel{\sqrt{\sum_iX_i^2}}}{\sqrt{\sum_j||\Omega^{B}_{j}||^2_2 + 2\sum_{j,j*}\left<\Omega^{B}_{j}, \Omega^{B}_{j*}\right>}\cancel{\sqrt{\sum_iX_i^2}}}}
+\end{aligned}
+$$
+The cancellation induced by this design implies that the linear model fails to identify the desired interaction between the right-hand cosine and the left-hand normalization weights. The term $\gamma_1$ averages the three-way interactions of the right-hand cosine with the left-hand normalization weight ($\gamma_0, \gamma_3$); the right-hand inner product with the scale ratio ($\gamma_5, \gamma_7$), *or* the second-order interaction of the right (reciprocal) normalization weight and the interaction of the right inner product and the left normalization weight ($\gamma_4, \gamma_6$). But the interpretation of the variable this coefficient refers to is not the same across the lower-order terms. Some researchers employ a model of this type with an additional correlated cosine similarity regressor sharing the reference vector set $X$, leading to a trivariate (additive) composed cosine regression.
+
+## Figures
+
+### Google News word2vec
+
+![ ](/Users/akindel/code/cosine/figures/alternative_embeddings/Fig1_word2vec.png)
+
+\pagebreak
+
+![ ](/Users/akindel/code/cosine/figures/alternative_embeddings/Fig2_word2vec.png)
+
+\pagebreak
+
+![ ](/Users/akindel/code/cosine/figures/alternative_embeddings/Fig3_word2vec.png)
+
+
+### Stanford NLP GloVe
+
+![ ](/Users/akindel/code/cosine/figures/alternative_embeddings/Fig1_StanfordGlove.png)
+
+\pagebreak
+
+![ ](/Users/akindel/code/cosine/figures/alternative_embeddings/Fig2_StanfordGlove.png)
+
+\pagebreak
+
+![ ](/Users/akindel/code/cosine/figures/alternative_embeddings/Fig3_StanfordGlove.png)
+
+\pagebreak
+
+## Tables
+
+### Table S1: Gender-sentiment analysis in main paper.
+
+\begin{table}[!h]
+\begin{tabular}{p{0.16\linewidth} | p{0.42\linewidth} | p{0.42\linewidth}}
+\textbf{Target concept} & \textbf{$W_x$} \\
+\hhline{|=|=|=|}
+male & male, man, boy, brother,\newline he, him, his, son \\
+\hline
+female & female, woman, girl, sister,\newline she, her, hers, daughter \\
+\hline
+pleasant & joy, love, peace, wonderful,\newline pleasure, friend, laughter, happy \\
+\hline
+unpleasant & agony, terrible, horrible, nasty,\newline evil, war, awful, failure \\
+\hline
+\end{tabular}
+\end{table}
+
+\pagebreak
+
+### Table S2: Additional keyword lists. Words are lowercased when this is called for by the input word embeddings; further adjustments listed.
+
+\small
+
+\rowcolors{2}{white}{gray!25}
+<!-- \begin{table}[!h] -->
+<!-- \begin{tabular}{p{0.15\linewidth} | p{0.6\linewidth} | p{0.25\linewidth}} -->
+\begin{longtable}{| p{0.15\textwidth} | p{0.6\textwidth} | p{0.25\textwidth} |} 
+\textbf{Label} & \textbf{Words} & \textbf{Adjustments} \\
+\hhline{|=|=|=|}
+flowers & aster, clover, hyacinth, marigold, poppy, azalea, crocus, iris, orchid, rose, bluebell, daffodil, lilac, pansy, tulip, buttercup, daisy, lily, peony, violet, carnation, gladiolus, magnolia, petunia, zinnia & gladiola $\rightarrow$ gladiolus \\
+insects & ant, caterpillar, flea, locust, spider, bedbug, centipede, fly, maggot, tarantula, bee, cockroach, gnat, mosquito, termite, beetle, cricket, hornet, moth, wasp, blackfly, dragonfly, horsefly, roach, weevil & \\
+pleasant & caress, freedom, health, love, peace, cheer, friend, heaven, loyal, pleasure, diamond, gentle, honest, lucky, rainbow, diploma, gift, honor, miracle, sunrise, family, happy, laughter, paradise, vacation & \\
+unpleasant & abuse, crash, filth, murder, sickness, accident, death, grief, poison, stink, assault, disaster, hatred, pollute, tragedy, divorce, jail, poverty, ugly, cancer, kill, rotten, vomit, agony, prison & \\
+instruments & bagpipe, cello, guitar, lute, trombone, banjo, clarinet, harmonica, mandolin, trumpet, bassoon, drum, harp, oboe, tuba, bell, fiddle, harpsichord, piano, viola, bongo, flute, horn, saxophone, violin & \\
+weapons & arrow, club, gun, missile, spear, ax, dagger, harpoon, pistol, sword, blade, dynamite, hatchet, rifle, tank, bomb, firearm, knife, shotgun, teargas, cannon, grenade, mace, slingshot, whip & axe $\rightarrow$ ax \\
+career & executive, management, professional, corporation, salary, office, business, career & \\
+family & home, parents, children, family, cousins, marriage, wedding, relatives & \\
+temporary & impermanent, unstable, variable, fleeting, short-term, brief, occasional & \\
+permanent & stable, always, constant, persistent, chronic, prolonged, forever & \\
+math & math, algebra, geometry, calculus, equations, computation, numbers, addition & \\
+arts & poetry, art, dance, literature, novel, symphony, drama, sculpture & \\
+science & science, technology, physics, chemistry, Einstein, NASA, experiment, astronomy & \\
+arts & poetry, art, Shakespeare, dance, literature, novel, symphony, drama &  \\
+male & brother, father, uncle, grandfather, son, he, his, him & \\
+female & sister, mother, aunt, grandmother, daughter, she, hers, her & \\
+mental illness & sad, hopeless, gloomy, tearful, miserable, depressed & \\
+physical illness & sick, illness, influenza, disease, virus, cancer & \\
+male names & John, Paul, Mike, Kevin, Steve, Greg, Jeff, Bill &  \\
+female names & Amy, Joan, Lisa, Sarah, Diana, Kate, Ann, Donna &   \\
+white names & Brad, Brendan, Geoffrey, Greg, Brett, Jay, Matthew, Neil, Todd, Allison, Anne, Carrie, Emily, Jill, Kristen, Meredith, Sarah & deleted Laurie  \\
+Black names & Darnell, Hakim, Jermaine, Kareem, Jamal, Leroy, Rasheed, Tremayne, Tyrone, Aisha, Ebony, Keisha, Kenya, Latonya, Latoya, Tamika, Tanisha & deleted Lakisha \\
+young names & Tiffany, Michelle, Cindy, Kristy, Brad, Eric, Joey, Billy & \\
+old names & Ethel, Bernice, Gertrude, Agnes, Cecil, Wilbert, Mortimer, Edgar & \\
+white names & Adam, Harry, Josh, Roger, Alan, Frank, Ian, Justin, Ryan, Andrew, Fred, Jack, Matthew, Stephen, Brad, Greg, Paul, Todd, Brandon, Hank, Jonathan, Peter, Wilbur, Amanda, Courtney, Heather, Melanie, Sara, Katie, Meredith, Shannon, Betsy, Donna, Kristin, Nancy, Stephanie, Ellen, Lauren, Colleen, Emily, Megan, Rachel & deleted Chip, Jed, Crystal, Amber, Peggy, Wendy, Bobbie-Sue, Sue-Ellen \\
+Black names & Alonzo, Jamel, Lerone, Theo, Alphonse, Jerome, Leroy, Rashaan, Torrance, Darnell, Lamar, Lionel, Rashaun, Tyree, Deion, Lamont, Malik, Terrence, Tyrone, Lavon, Marcellus, Terrell, Wardell, Aisha, Nichelle, Shereen, Tamika, Ebony, Latisha, Shaniqua, Jasmine, Latonya, Shanice, Tanisha, Tia, Latoya, Sharice, Yolanda, Lashawn, Malika, Tawanda, Yvette & deleted Percell, Everol, Lashelle, Teretha, Tameisha, Lakisha, Shavonn, Tashika; Rasaan $\rightarrow$ Rashaan, Terryl $\rightarrow$ Terrell, Aiesha $\rightarrow$ Aisha, Temeka $\rightarrow$ Tamika, Shanise $\rightarrow$ Shanice, Sharise $\rightarrow$ Sharice, Lashandra $\rightarrow$ Lashawn \\
+\hline
+\end{longtable}
+<!-- \end{tabular} -->
+<!-- \end{table} -->
+
+\pagebreak
+
+## References
+
+\small
+
+<div id="refs"></div>
