@@ -1,0 +1,1058 @@
+---
+title: |
+ | Geometrically consistent estimation of multidimensional
+ | word associations in text corpora
+author: "Alexander T. Kindel\\footnote{Assistant Professor of Sociology, médialab, Sciences Po, Paris, France. Contact: alexander.kindel@sciencespo.fr. I am grateful to B. Stewart for providing extensive guidance over the lifespan of this project. I also wish to thank A. Berg, D. Choi, T. Hansen, J. Lockhart, N. Torres-Echevarry, B. Rohr, and F. Wherry for helpful conversations regarding prior drafts of this paper; and N. Zhou and N. West for introducing me to an aleatoric representation of multidimensional word association problems.}"
+date: "18 September 2023"
+abstract: |
+ |  The Word Embedding Association Test (WEAT) is a popular model for measuring word associations in text corpora (e.g., biases, stereotypes, schemas). WEAT-like measurement models aim to estimate the difference in association between two concepts indexed by keyword lists over a set of word embeddings. I show that they do not consistently estimate this quantity. The underlying metric, mean cosine similarity, cannot discern what all of the keywords have in common: in keyword lists with at least four words, the metric does not guarantee that every sub-list containing at least three words is closest in association to itself. For this to be true, the Euclidean distance between at least one of the word pairs would have to be negative. The metric is geometrically inconsistent in the sense that this is impossible. The degree of inconsistency is partially predictable from the conditioning of the cosine similarity matrix. The inconsistency of mean cosine similarity is explained in comparison to a multidimensionally consistent similarity metric.
+ |
+bibliography: Kindel_cosines_Science.bib
+csl: science.csl
+toc: FALSE
+indent: TRUE
+output:
+  pdf_document:
+    latex_engine: xelatex
+    keep_tex: TRUE
+    toc: FALSE
+    dev: png
+header-includes:
+  - \usepackage{setspace}
+  - \usepackage{enumitem}
+  - \usepackage{epigraph}
+  - \usepackage{cancel}
+  - \usepackage{bbm}
+  - \usepackage{rotating}
+  - \usepackage{caption}
+  - \captionsetup[figure]{labelfont=bf}
+  - \setlength\epigraphwidth{0.9\textwidth}
+  - \setlength\epigraphrule{0pt}
+  - \renewcommand{\textflush}{flushepinormal}
+  - \renewcommand{\epigraphflush}{center}
+  - \setlist{listparindent=\parindent, parsep=0pt}
+  - \doublespacing
+  - \usepackage{indentfirst}
+  - \setlength\parindent{24pt}
+  - \setlength{\parskip}{0.5mm}
+  - \usepackage[bottom]{footmisc}
+  - \renewcommand{\footnotelayout}{\setstretch{1.05}}
+  - \usepackage{dcolumn}
+  - \usepackage{hhline}
+---
+
+\pagebreak
+
+The Word Embedding Association Test (WEAT) is a popular method for measuring word associations in large text corpora using word embeddings [@caliskan2017semantics].^[Word embeddings are low-rank approximations to bivariate word association measures in text corpora. Embedding algorithms typically factor sparse $n \times n$ matrices of word association statistics into two dense rank $p$ vector spaces $W_R, W_C$ corresponding to the row and column spaces of the underlying measure. In practice, researchers use $W=W_R$ as the word vector space, or sometimes $W=W_R+W_C$ when the underlying measure is assumed to be symmetric. The results in this paper are agnostic to the choice of embedding algorithm.] WEAT is modeled on the Implicit Association Test (IAT) in social psychology [@greenwald1998measuring]; like the IAT, it is meant to estimate differences in association between concepts encoded in keyword lists. However, WEAT-like measurement models do not consistently estimate this quantity. Given two keyword lists of cardinality $k$ that are subsets of a word vector space ($A, B \subset W$), the similarity metric underlying WEAT---mean cosine similarity (MCS)---is best understood as a certain estimator of the expected *unidimensional* word association: on average, how much does any pair of individual words $\{A_i, B_i\}$ have in common? This is a mathematically and conceptually distinct quantity from *multidimensional* word association: how much do all of the words in $A$ and all of the words in $B$ have in common? This paper explains why these two seemingly similar word association estimands must not be confused.
+
+I demonstrate that the MCS metric is inadmissible as an estimator of multidimensional word association. Specifically, MCS is not geometrically consistent: given any list with more than three words, the metric is not guaranteed to determine that all of the sub-lists are closest in association to themselves, resulting in a geometrically self-contradictory measure. I contrast MCS with a multidimensional similarity metric for word associations with close links to canonical correlation analysis [@hotelling1936cca]: the sum of the squared cosines of the principal angles between the subspaces spanned by the two word lists. I refer to this quantity as the canonical subspace metric.
+
+Table 1 compares the performance of the two estimators on the ten WEAT measures of semantic bias presented in the original paper (see Materials and Methods). MCS-based WEAT measures tend to be inflated related to the canonical subspace metric. The MCS estimate for WEAT 8 is closest in magnitude but has the opposite sign. The median error in magnitude is approximately 4.2 times the corresponding canonical subspace metric, but magnitude errors in the other direction are possible. Additionally, the nested difference in means design of the test masks variation in the list-pairwise similarity metrics. MCS correctly estimates the order statistics for the four pairwise comparisons only for one test (WEAT 10).
+
+To explain why MCS is an inconsistent estimator for multidimensional word association problems, this paper compares the two similarity estimators in greater mathematical and conceptual detail. I define what it means for a multidimensional similarity metric to be geometrically inconsistent; explain how canonical correlation analysis yields a consistent metric; and show that mean cosine similarity does not. I illustrate the difference with respect to a comparison between the "male" and "female" words in WEAT 7 and the "pleasant" and "unpleasant" words in WEAT 5 (see Table S1) using publicly available GloVe embeddings of English Wikipedia [@nosek2002harvesting; @pennington2014glove; @rodriguez2023multilanguage]. In the supplemental materials, I provide results for other commonly used pre-trained word embeddings and discuss a few WEAT-like measurement models that are widely used in applied settings.
+
+**Minimality and geometric consistency in multidimensional similarity estimation.** Many research designs in applied statistical text analysis employ similarity metrics as estimators of word association. A well-known requirement for geometric similarity measurement in this data analysis regime is the *minimality axiom*, which states that any object $x$ is most similar to itself [@tversky1977features]:  
+$$\forall x, y \in W: d(x, y) \geq d(x, x) = 0$$  
+This is really two statements: $d(x, y) \geq d(x, x)$ and $d(x, x) = 0$. The inequality can be generalized to multidimensional comparisons between subsets of $W$, but the zero-equivalence statement applies only to points. If there were not a non-trivial similarity structure internal to subsets of $W$, we would not be willing to accept the unidimensional metric in the first place. So, a multidimensional similarity metric should allow the self-similarity to equal any scalar as long as this is the greatest similarity over all of the possible comparisons. A better way of phrasing the second statement is therefore \(d(x, x) - d(x, x) = 0\).
+
+The minimality inequality generalizes to many dimensions in the sense that it applies recursively to every $[1,k-1]$-dimensional comparison contained in any $k$-dimensional comparison. Define a multidimensional similarity metric as *geometrically consistent* if every $q$-subset of any $k$-subset of the rows of a real vector space $W$ is more similar to itself than any other $q$-subset of the same $k$-subset. Formally, where $[W]^{kCq}$ denotes the set of $q$-subsets of some $k$-subset of $W$ $(k > q)$, then the following statement must be true:  
+$$\forall i, \forall q < k: \arg\sup_{j} \text{Sim}([W]^{kCq}_i, [W]^{kCq}_j) = i$$  
+In other words, if I choose any set of keywords, then every subset I can make by removing one or more words from the set must be more similar to itself with respect to my chosen similarity metric than any of the other subsets with the same number of words.
+
+A proposed metric without this property is inadmissible because it is self-contradicting. Consider the $k$-simplex with edges corresponding to the pairwise Euclidean differences between a set of vectors indexed by any keyword list $X$. This $k$-simplex is bounded by a lattice of $q$-simplical subspaces formed by subsets of $X$ ($q \in [1, k-1], q \in \mathbb{Z}$). An admissible similarity metric must satisfy the minimality inequality with respect to all of the $q$-simplices of equal dimensionality. As a concrete example, consider the tetrahedron formed by $X=\{\text{he, him, his, himself}\}$. $X$ has triangular faces $X_A = \{\text{he, him, himself}\}$ and $X_B = \{\text{he, him, his}\}$. $X_A$ and $X_B$ coincide at the edge between $\{\text{he, him}\}$, so the dihedral angle between $A$ and $B$ is proportional to the pointwise distance between $\{\text{his}\}$ and $\{\text{himself}\}$. Now consider a proposed metric $\text{Sim}_W^*(\cdot, \cdot)$ that yields the result $\text{Sim}_W^*(X_A, X_A) < \text{Sim}_W^*(X_A, X_B)$. This implies that the distance between $\{\text{himself}\}$ and $\{\text{his}\}$ must be less than zero. $\text{Sim}_W^*(\cdot, \cdot)$ is inadmissible because this is not possible.
+ 
+Define the index of inconsistency $\mathcal{I}_{q,k}(\text{Sim}_W(\cdot, \cdot))$ for a similarity metric over $W$ as the proportion of $q$-subsets of a keyword list of cardinality $k$ in $W$ that are most similar to themselves with respect to $\text{Sim}_W(\cdot, \cdot)$. A geometrically consistent metric satisfies $\mathcal{I}_{q,k}(\text{Sim}_W(\cdot, \cdot)) = 1$ for any choice of $q$ and $k$ up to the ambient dimensionality defined by $W$. It is particularly worrisome if the expected value of $\mathcal{I}_{q,k}$ is decreasing as $k$ increases; adding more relevant keywords to an analysis should not make it less consistent. The index of inconsistency is closely related to the regularity of the $k$-simplex induced by $X$. A helpful heuristic discrepancy measure is the Euclidean condition number of $X$, which measures the elongation of its hyperelliptical projection [@golub2013matrix, p.88].
+
+
+**A canonical metric for multidimensional similarity.** To construct a geometrically consistent multidimensional similarity metric, define $W(k)$ as the set of row subspaces spanned by $k$-subsets of the rows of $W$. Denote the row space of $W$ as $\mathcal{R}(W)$. For all subspaces $A \in W(k)$ consider the corresponding orthogonal projector $\mathcal{P}(A) = A(A^TA)^{-1}A^T$. Then, equip $W(k)$ with the symmetric bilinear form $\text{Sim}_\text{CCA; k}: W(k) \times W(k) \rightarrow \mathbb{R}$ corresponding to the Frobenius inner product of the orthogonal projections [@krzanowski1979between; @meyer2000matrix, p. 429--430; @borg2005modern, p. 439--441]:
+
+$$
+\begin{aligned}
+\text{Sim}_\text{CCA; k}(W_a, W_b) &= \left<\mathcal{P}(W_a),\mathcal{P}(W_b)\right>_F = \text{tr}(\mathcal{P}(W_a)^T\mathcal{P}(W_b)).
+\end{aligned}
+$$
+
+$\text{Sim}_\text{CCA; k}$ defines an inner product over the space of orthogonal projections onto $\mathcal{R}(W)$ [@horn2012matrix, p. 321]. It is always non-negative because the projection matrices are positive semi-definite. When the comparison is one-to-one it is exactly equivalent to the squared cosine similarity between the two vectors. Unlike mean cosine similarity, this quantity has the desired consistency properties with respect to the dimensionality of the comparison. $\text{Sim}_\text{CCA; k}(A, B)$ is constrained to lie between 0, indicating the subspaces share no common direction, and $p=\min(\text{rank}(A), \text{rank}(B))$, indicating the subspaces are isotropically aligned. The metric can be scaled to lie between [0, 1] if we divide it by $\sqrt{\text{Sim}_\text{CCA; k}(W_a, W_a)\text{Sim}_\text{CCA; k}(W_b, W_b)}$, equivalent to the geometric mean of the lengths of the underlying word lists. The dimensionwise alignment is equivalent to the vector of singular values obtained by taking the singular value decomposition of the projection matrix product; each singular value corresponds exactly to the cosine of the angle between the $i$th pair of singular vectors. I refer to the total metric as the *canonical subspace metric* and its component quantities as the *canonical congruences*.
+
+The metric is very closely related to canonical correlation analysis, but there are two critical modifications. First, the analysis is carried out without recentering the subspaces, so it is not a local correlation measure. We avoid recentering because we are working with a vector space, so the subsets of word vectors we have selected into the analysis already share a fixed point at the origin. If we subtract their local means, the overall difference in frequency of use between the two keyword lists distorts the resulting affine metric.^[This can also be motivated from the perspective of the sparse high-dimensional word association measure approximated by the word embedding matrix. The word vectors lie on the surface of a high-dimensional convex body in $\mathbb{R}^n$ that we have mapped onto a hyperelliptical cross-section in $\mathbb{R}^k$; this surface captures most of the variation in position in the larger space [@dvoretzky1961convex]. However, we must not forget that we are ignoring the remaining $n-k$ dimensions. Imagine then that the word embedding matrix $W$ is missing $n-k$ columns of zeroes. It is safe to omit these columns when we take the unidimensional cosine because this does not affect the calculation of the angular metric once we have constructed the low-rank approximation. But, if we recenter subspaces of $W$ without remembering the remaining dimensions, the estimated centroids will be very far away from the value we should have used, which is generally quite close to the zero vector.] Second, we carry out the analysis between row subspaces of the same vector space, rather than between the column spaces of two matrices with rows corresponding to the same units. Rather than studying two sets of measures on the same set of observations, we are studying two different sets of observations with respect to the same set of measures, i.e. the variation we have estimated by the word embedding algorithm. The [0, 1] rescaled quantity has been discussed in many areas of multivariate analysis; in psychometrics it is called Tucker's congruence coefficient [@tucker1951method; @korth1975distribution], and in the French school of data analysis it is more often called the RV coefficient [@escoufier1973traitement; @robert1976unifying].^[Kornblith and colleagues [@kornblith2019similarity] propose using a kernelized version of this quantity to measure similarity between neural network layers. This measure could be used if researchers were using word lists with cardinality larger than $\text{rank}(W)$. In practice, this is not necessary for word association problems of the scale targeted by WEAT-like models.]
+
+
+**Why does WEAT fail to measure multidimensional semantic association?** To show that score components in WEAT do not have the desired consistency property, it is helpful to review the design of the test. WEAT is defined by two operations on the input word vector space $W$. First, the researchers selects disjoint keyword lists of length $k$ that appear in the vocabulary of $W$. This step is typically performed using preset IAT keyword lists. Given a keyword list, WEAT selects the row vector in $W$ with a label corresponding to this word. As a running example, Table S1 lists the keywords for a WEAT measure comparing the differential association between "male" or "female" words and "pleasant" or "unpleasant" words.
+
+Second, $W$ is equipped with a bivariate association metric (cosine similarity) that quantifies the amount of association between all $k^2$ pairs of word vectors across two keyword lists. The WEAT measure is then computed by taking the arithmetic mean of the $k \times k$ matrix of cosine similarities and comparing these scores to the other three mean cosine similarities. Formally, let $A, B, C, D$ be the subspaces of the row space of $W$ induced by four mutually disjoint keyword lists of equal length $k < p$.^[For brevity, I only consider the case of equal word list lengths. In general, multidimensional similarity cannot have dimensionality exceeding the minimum cardinality of the input keyword lists.] Then the WEAT score with respect to $W_{A, B; C, D}$ is the grand mean difference in cosine similarities across $\{A,B\}$ and $\{C,D\}$: $\text{WEAT}(A, B, C, D) = 1/k^2\sum_i^k\sum_j^k(\cos(A_i,C_j) - \cos(A_i,D_j) + \cos(B_i,D_h) - \cos(B_i,C_j)$.
+
+Due to the symmetry in the test it is sufficient to characterize the behavior of $\frac{1}{k^2}\sum_i^k\sum_j^k\cos(X_i, Y_i)$ for any two disjoint and arbitrarily ordered word vector subsets $X, Y \subset W$ of size $k$. Denote the subspaces of $\mathcal{R}(W)$ spanned by $X, Y$ as $W_X, W_Y$. Denote the power sets of $X, Y$ as $\text{Pow}(X), \text{Pow}(Y)$. Define the similarity metric $\text{Sim}_{q}(W_X, W_Y)$ between the subspaces corresponding to every $q$-subset in $\text{Pow}(X), \text{Pow}(Y)$, where $q \in [1, k_z-1]$. As we increase $k$ to the ambient dimensionality of $W$, the intersection of the orthogonal complements of $W_X$ and $W_Y$ eventually vanishes; that is, regardless of the choice of words, the two subspaces will approach one-another until they coincide exactly once we hit the number of dimensions in the vector space. If $\text{Sim}_{q}(W_X, W_Y)$ is geometrically consistent with respect to $W$, then this must also be true everywhere on the lattice of similarity metrics defined by $\text{Pow}(X), \text{Pow}(Y)$ as $q$ increases. Thus $\text{Sim}_{q}(W_X, W_Y)$ must be nondecreasing as we increase $q$. Reciprocally, if some values of $\text{Sim}_{q}(W_X, W_Y)$ are not nondecreasing in $k$, then it cannot be geometrically consistent with respect to $W$.
+
+Figure 1 demonstrates that the MCS estimator $\text{Sim}^*(I, J) := (1/k^2) \sum_{q=i} \sum_{q=j} \cos([W]^k_i, [W]^k_j)$ is not geometrically consistent for $q \geq 3, k \geq 4$. To show this, we must consider the lattice of all possible analyses involving subsets of words in a keyword list $A$. Each column of heatmaps depicts the lattice of canonical subspace metrics (left) mean cosine similarities (center panel) between every subset of the keyword list at the top of the figure. Each cell of the heatmap corresponds to the metric over the corresponding $q$-subset. A reasonable heuristic predictor of inconsistency is the 2-norm condition number of the cosine similarity matrix (see Fig. 1; right panel); the lower this value, the more likely it is that a subspace of dimension $q$ will be confused for one of its counterparts.
+
+Figure 2 displays the canonical subspace metric (Fig. 2; left panel) and the corresponding MCS metric (Fig. 2; center panel) over the lattice of comparisons between subsets of the keyword lists. In the right panel, the full distribution of metrics corresponding to each heatmap is displayed; the dots indicate (in vertical order) the maximum value, expectation, and minimum value of the metric over $q$. In the right panel only, the mean of the *squared* cosine similarities is used to show the equivalence with the canonical subspace metric for the unidimensional problem. The expectation of the MCS metric over all possible sub-analyses of equivalent dimension is decreasing in the input dimension, while the expected canonical subspace metric increases monotonically in the number of dimensions as desired. As the number of cosine similarity estimates corresponding to the size of the analysis increases, the association between any pair of words already in the list remains fixed with respect to the new words. This causes MCS to converge to the expected coplanar angle in the input vector space as we increase $k$. In other words, MCS is a particular estimator of the expected cosine similarity between *any two vectors* in $X$ and $Y$, and it does not measure what or how much *all of the vectors* have in common.
+
+Figure 3 displays the canonical congruences for the four subspace pairs compared to the three possible expected distributions of minimal common subspace alignment in $W(k)$. The corresponding WEAT score component for each metric is shown for comparison (MCS: dotted line; CCA: dashed line). Any comparison implies three reference distributions: the distribution obtained by randomizing both keyword lists, and the two distributions obtained by randomizing one list while holding the other fixed. There is no necessary relationship between these distributions, so there are many different answers to the question of whether an association is larger or smaller than what we would expect. One particularly interesting comparison is the difference between the estimate's relation to the two-way null and its relation to one or both of the one-way nulls. The association can be simultaneously smaller than what we would expect by a two-way random draw and larger than what we would expect by either one-way random draw, or vice-versa. There is no necessary relationship between the rank index of the estimated congruences and their positions with respect to their reference distributions; for example, only the eighth canonical congruence in the $\{\text{male, unpleasant}\}$ comparison is outside all three 95% prediction intervals.
+
+
+**Implications for word association measurement.** WEAT-like measures are widely used in the social sciences to measure a wide range of cultural processes observable in text that traditionally were measured by human raters [@kozlowski2019geometry; @nelson2021leveraging]. The key validity evidence for WEAT in this context is its agreement with human word association ratings (i.e., the IAT and similar psychological test-based methods). However, the convergent validity of the measure is weak evidence if it is not geometrically consistent. MCS does not satisfy this criterion. In practice, the canonical subspace metric is always a more consistent estimator of the targeted variation than MCS, and facilitates interpreting variation in the scale of observed associations in applied research. A general conclusion is that researchers should not use mean cosine similarity as a measure of multidimensional semantic association in applied statistical text analysis.
+
+It is worth emphasizing that this result *cannot* be interpreted as evidence that stereotypes and biases do not exist. The canonical subspace metric surfaces word associations between gendered identity words and sentiment words with magnitude in excess of what we would expect from totally random selections of words. The more fundamental problem is that it is not clear why we should define (e.g.) stereotypical association for Black names with respect to white names, or biases against women with respect to men [@johfre2021reconsidering]. The results in this paper challenge the notion that there are unambiguously categorically opposed sets of words that would justify this analytic approach. In some contexts male/female and white/Black are talked about as if they are opposites, but this is only one limited perspective on the vast spectrum of similarities, differences, and ambiguities indexed by gender and racial identity [@butler1990gender; @hobbs2014chosen]. Reliance on keyword lists as a priori representations of "concepts" ("attributes", "identities", "schemas", etc.) renders this measurement approach dependent on the reader's intuitive acceptance of the concept label, rather than evidence that the keywords specifically pick out this concept. It is logically inconsistent to presume the meaning of words in advance of seeing their contexts if we are trying to learn word meanings by observing the contextual use of language [@wittgenstein1953pi].
+
+\pagebreak
+
+## References
+
+\small
+
+<div id="refs"></div>
+
+\normalsize
+
+\pagebreak
+
+## Figures
+
+### Captions
+
+#### Figure 1.
+Multidimensional similarity metrics within subspaces. Each column forms a lattice over the set of comparisons between subspaces. Each row increases the subspace dimensionality by one (top row is 1, bottom row is 7). Red dots indicate the row/column maximum (note the matrices are symmetric). A geometrically consistent similarity measure for multidimensional word association problems must locate all of the maxima on the diagonal. The canonical subspace metric satisfies this criterion; the mean cosine similarity metric does not (heatmaps, left panel). Geometric inconsistency is partially predictable from the hyperelliptical elongation (condition number) of the $k$-simplex described by each cosine similarity matrix (scatterplots, right panel).
+
+#### Figure 2.
+Multidimensional similarity metrics between subspaces. Cell colors indicate more commonality between subsets (heatmaps, left panel). The solid red (canonical subspace) and blue (mean squared cosine similarity) lines indicate their respective expectations. The dashed lines indicate the maximum and minimum values at each dimensionality. The canonical subspace metric increases as we gain more information about the common semantics of the input word. When the word association problem involves only one-to-one word pairings, the canonical subspace metric is equivalent to the *squared* cosine similarity. The mean cosine similarity decreases toward the global mean as more words are added to the analysis, whereas the canonical subspace metric increases.
+
+#### Figure 3.
+Canonical congruences (red diamonds) with 95% prediction intervals for the one- and two-way null distributions. Blue intervals correspond to the one-way null distributions holding the pleasant/unpleasant lists constant while randomizing the male/female lists. Yellow intervals correspond to the one-way null distributions holding the male/female lists constant while randomizing the pleasant/unpleasant lists. Green intervals randomize both lists. The mean cosine similarity metric for each comparison is plotted as the pink dotted line; the canonical subspace metric is plotted as the red dashed line.
+
+```{r setup, echo=F, message=F, warning=F}
+library(tidyverse)
+library(magrittr)
+library(rsvd)
+library(ggpubr)
+library(patchwork)
+library(kableExtra)
+library(here)
+
+# Document settings
+theme_set(theme_bw())
+knitr::opts_chunk$set(warning=FALSE, message=FALSE, echo=FALSE,  # don't pollute the PDF with error messages
+                      cache=TRUE, cache.lazy=FALSE, eval=FALSE,  # don't rerun the analysis unless eval=T
+                      dpi=300, fig.height=9)  # figure settings
+set.seed(271828)
+```
+
+```{r data_setup}
+# Load Rodriguez et al. GloVe
+# https://alcembeddings.org/alcdata
+glove.d <- read_delim(here("data", "glove_vectors_enwiki.txt"), " ", col_names = F)
+glove.m <- do.call(cbind, glove.d[,-1])
+rownames(glove.m) <- glove.d$X1
+rm(glove.d)
+
+# Alternative embeddings -- uncomment if needed
+
+# Load Pennington et al. GloVe
+# https://nlp.stanford.edu/projects/glove/
+# glove.d2 <- read_table2(here("data", "glove.6B.300d.txt"), col_names = FALSE)
+# glove.m2 <- do.call(cbind, glove.d2[,-1])
+# rownames(glove.m2) <- glove.d2$X1
+# rm(glove.d2)
+
+# Load word2vec (currently using Google's public SGNS embeddings of Google News)
+# using sed, I removed the top line (the matrix dimensions) and changed "shortterm" to "short-term"
+# I also subsetted to the top 1.2M terms for memory reasons, but you don't have to
+# https://code.google.com/archive/p/word2vec/
+# word2vec.d <- read_delim(here("data", "GoogleNews-vectors-negative300-top12M.txt"), " ", col_names = F)
+# word2vec.m <- do.call(cbind, word2vec.d[,-1])
+# rownames(word2vec.m) <- word2vec.d$X1
+# rm(word2vec.d)
+
+# WEAT keyword lists (gender sentiment analysis)
+male_a <- str_split("male, man, boy, brother, he, him, his, son", ", ", Inf, T)
+female_a <- str_split("female, woman, girl, sister, she, her, hers, daughter", ", ", Inf, T)
+pleasant_b <- str_split("joy, love, peace, wonderful, pleasure, friend, laughter, happy", ", ", Inf, T)
+unpleasant_b <- str_split("agony, terrible, horrible, nasty, evil, war, awful, failure", ", ", Inf, T)
+ss.k <- length(male_a)
+
+# This code complains if we can't support the test lexicon
+# all_words <- c(male_a, female_a, pleasant_b, unpleasant_b)
+# vocab_supported <- length(c(all_words[which(!all_words %in% glove.d$X1)], all_words[which(!all_words %in% glove.d$X1)])) == 0
+# stopifnot(vocab_supported)
+
+# set the input embeddings
+# recommend removing the other two if you're not using them, they're big
+embed.m <- glove.m  # default
+# embed.m <- glove.m2
+# embed.m <- word2vec.m
+```
+
+```{r canonical}
+# Krzanowski (1979) common subspace metric
+# if A and B are the subspaces and A(AtA)'AtB(BtB)'Bt = USV' is the svd then S is the
+# vector of principal angles between the subspaces (set by the choice of # words)
+# you can avoid the matrix inversion if you orthonormalize the subspaces first, but they're small anyways
+# the spectral norm and the trace summarize the size of the common subspace nicely
+# cohen & crane 1995 recommend using the distance metric sqrt(p-Krz(A, B)) where A and B are {n,p}
+# s1/s2.oc options use the residual maker matrix instead of the projection matrix for this subspace
+# using the randomized svd makes it go faster; maybe check the usual way too?
+# you don't have to SVD it if you don't care about the component angles.
+krz <- function(M, s1, s2, k, s1.oc=F, s2.oc=F, .tstat=F, .svd=F, .rsvd=F, .cbm=F) {
+  # b1 <- svd(t(M[s1,]))$u  # if you do this, the inverse covariance matrices are identity
+  # b2 <- svd(t(M[s2,]))$u
+  b1 <- M[s1,]
+  b2 <- M[s2,]
+  if(k == 1) {
+    # R is really annoying for this one
+    b1 <- t(b1)
+    b2 <- t(b2)
+  }
+  p1 <- crossprod(b1, solve(tcrossprod(b1))) %*% b1
+  p2 <- crossprod(b2, solve(tcrossprod(b2))) %*% b2
+  
+  # often we just need the statistic
+  # we can avoid the matrix multiplication by summing the Schur product margin
+  # note px is hermitian so we don't need to transpose and rowsum=colsum
+  if (.tstat) {
+    # return(sum(diag(cbM)))
+    return(sum(colSums(p1 * p2)))
+  } 
+
+  # otherwise we want the projection product
+  cbM <- NA
+  if(s1.oc & s2.oc) {
+    r1 <- diag(1, nrow(p1), ncol(p1)) - p1
+    r2 <- diag(1, nrow(p2), ncol(p2)) - p2
+    cbM <- r1 %*% r2
+  } else if (s1.oc & (!s2.oc)) {
+    r1 <- diag(1, nrow(p1), ncol(p1)) - p1
+    cbM <- r1 %*% p2
+  } else if ((!s1.oc) & s2.oc) {
+    r2 <- diag(1, nrow(p2), ncol(p2)) - p2
+    cbM <- p1 %*% r2
+  } else {
+    cbM <- p1 %*% p2
+  }
+  
+  if(.svd) {
+    if(.rsvd) {
+      return(rsvd(cbM, k))
+    } else {
+      return(svd(cbM))
+    }
+  } else if(.cbm) {
+    return(cbM)
+  } else {
+    # just compute the singular values
+    # these are the angles; the top-level stat is sum(v^2),
+    #  i.e. the sum of the *eigenvalues*
+    if(.rsvd) {
+      return(rsvd(cbM, k=k, nu=0, nv=0)$d)
+    } else {
+      return(svd(cbM, nu=0, nv=0)$d[1:k])
+    }
+  }
+}
+
+# common subspace projection basis for subspaces b1, b2
+krz.b <- function(b1, b2) {
+  p1 <- t(b1) %*% solve(tcrossprod(b1)) %*% b1
+  p2 <- t(b2) %*% solve(tcrossprod(b2)) %*% b2
+  cbM <- p1 %*% p2
+  return(svd(cbM))
+}
+
+# compute angles between word vectors
+ss.cos <- function(M, s1, s2) {
+  b1 <- M[s1,]
+  b2 <- M[s2,]
+  if(length(b1) == dim(M)[2]) {
+    # R is really annoying for this one
+    b1 <- t(b1)
+    b2 <- t(b2)
+  }
+  csM <- sapply(1:nrow(b1), function(i) sapply(1:nrow(b2), function(j) lsa::cosine(b1[i,], b2[j,])))
+  return(csM)
+}
+
+# sample n non-overlapping random subspaces from M of size 2k (to split in half)
+rand.ss <- function(M, n, k) {
+  return(lapply(1:n, function(i) sample(1:nrow(M), k*2)))
+}
+
+# same as above but use the word index.
+rand.ss.w <- function(M, n, k) {
+  return(lapply(1:n, function(i) sample(rownames(M), k*2)))
+}
+
+# construct Krzanowski measures over two word lists A,B and embedding M
+# dimensionality is set by this choice (they should be equal sizes!)
+# this takes a while because we have to do 3n SVDs. for testing we use only a 
+# small number of resamples; for the paper we use a much larger sample.
+sample_krz <- function(M, A, B, n=200, .rsvd=F) {
+  a.wl <- c(A)
+  b.wl <- c(B)
+  ss.k <- length(a.wl)
+  # word.index <- rownames(M)  # if needed!
+
+  # compute subspace-specific measures
+  krz.mf <- krz(M, a.wl, b.wl, ss.k)  # Krzanowski measure wrt A, B
+  cos.mf <- ss.cos(M, a.wl, b.wl)  # cosine matrix wrt A, B
+  
+  # compute null K distributions
+  rss <- rand.ss(M, n, ss.k)
+  krss <- lapply(rss, function(x) krz(M, x[1:ss.k], x[(ss.k+1):(ss.k*2)], ss.k, .rsvd=.rsvd))  # S1, S2 totally random
+  krss.a <- lapply(rss, function(x) krz(M, x[1:ss.k], a.wl, ss.k, .rsvd=.rsvd))  # wrt A, S1
+  krss.b <- lapply(rss, function(x) krz(M, x[1:ss.k], b.wl, ss.k, .rsvd=.rsvd))  # wrt B, S1
+
+  # compute null cosine distribution
+  css <- lapply(rss, function(x) ss.cos(M, x[1:ss.k], x[(ss.k+1):(ss.k*2)]))
+  css.a <- lapply(rss, function(x) ss.cos(M, x[1:ss.k], a.wl))
+  css.b <- lapply(rss, function(x) ss.cos(M, x[1:ss.k], b.wl))
+  
+  # return measured object
+  return(list(krz.m=krz.mf,
+              cos.m=cos.mf,
+              krss=do.call(rbind, krss),
+              krss.a=do.call(rbind, krss.a),
+              krss.b=do.call(rbind, krss.b),
+              css=do.call(rbind, css),
+              css.a=do.call(rbind, css.a),
+              css.b=do.call(rbind, css.b)))
+}
+
+# compute every Krzanowski trace statistic over Pow(X) x Pow(Y) at dimensionality k
+# the dimensionality has to be between [2, k-1]
+# we don't compare the subspaces for unequally sized subsets
+power_krz <- function(M, wA, wB, d, measure=c("K", "C", "H", "F")) {
+  idxr <- which(sapply(wA, length) == d)
+  dl <- min(idxr)
+  du <- max(idxr)
+  Mk <- NA
+  if(measure == "K") {
+    Mk <- sapply(wA[dl:du], function(sA) sapply(wB[dl:du], function(sB) krz(M, sA, sB, d, .tstat=T)))
+  } else if (measure == "C") {
+    Mk <- sapply(wA[dl:du], function(sA) sapply(wB[dl:du], function(sB) mean(ss.cos(M, sA, sB))))
+  } else if (measure == "H") {
+    Mk <- sapply(wA[dl:du], function(sA) sapply(wB[dl:du], function(sB) hausdorff(M, sA, sB)))
+  } else if (measure == "F") {
+    Mk <- sapply(wA[dl:du], function(sA) sapply(wB[dl:du], function(sB) frechet(M, sA, sB)))
+  }
+  rownames(Mk) <- sapply(wB[dl:du], paste, collapse=", ")
+  colnames(Mk) <- sapply(wA[dl:du], paste, collapse=", ")
+  return(Mk)
+}
+
+# function to compute summary stats
+lattice_summary <- function(C, K) {
+  data.frame(mk=sapply(K, function(x) mean(c(x))),
+             vk=sapply(K, function(x) var(c(x))),
+             kmax=sapply(K, function(x) max(c(x))),
+             kmin=sapply(K, function(x) min(c(x))),
+             mc=sapply(C, function(x) mean(c(x))),
+             vc=sapply(C, function(x) var(c(x))),
+             cmax=sapply(C, function(x) max(c(x))),
+             cmin=sapply(C, function(x) min(c(x))),
+             mc2=sapply(C, function(x) mean(c(x)^2)),
+             vc2=sapply(C, function(x) var(c(x)^2)),
+             cmax2=sapply(C, function(x) max(c(x)^2)),
+             cmin2=sapply(C, function(x) min(c(x)^2)), 
+             ki=1:7,
+             nski=sapply(1:7, choose, n=8))
+}
+
+# at what choice of the top-level dimension does this start breaking down at sk=3?
+sk.breakdown <- function(sk, swl) {
+  male_ss_ps <- lapply(as.vector(sets::set_power(swl)), as.character)
+  #ms.c.lattice <- lapply(1:(sk-1), function(ki) power_krz(glove.m, male_ss_ps, male_ss_ps, ki, "C"))
+  ms.c.lattice <- lapply(1:(sk-1), function(ki) power_krz(embed.m, male_ss_ps, male_ss_ps, ki, "C"))
+  expected.max <- which(diag(1, dim(ms.c.lattice[[3]])) == 1)
+  observed.max <- which(ms.c.lattice[[3]] == matrixStats::colMaxs(ms.c.lattice[[3]]))
+  return(expected.max == observed.max)
+}
+
+# get all k-subsets of the word list
+subwordlists <- function(wl, sk) {
+  return(wl[which(lapply(wl, length) == sk)])
+}
+
+# compute index of inconsistency over all the k-subsets
+breakdown <- function(wl, sk) {
+  wl_sks <- subwordlists(wl, sk)
+  wl_sks_breakdown <- lapply(wl_sks, function(swl) sk.breakdown(sk, swl))
+  return(wl_sks_breakdown)
+}
+
+# index of inconsistency in list wl at dimensionality k
+# basically how much breakdown is there at m=3
+# this takes a while bc we have to compute all kCq sublattices
+k.inconsistency <- function(wl, k) {
+  bks <- breakdown(wl, k)
+  swl <- subwordlists(wl, k)
+  bk.icon.idx <- rowSums(do.call(rbind, bks))
+  #bk.icon.cos <- lapply(swl, function(L) ss.cos(glove.m, L, L))
+  bk.icon.cos <- lapply(swl, function(L) ss.cos(embed.m, L, L))
+  bk.icon.cm <- sapply(bk.icon.cos, function(C) mean(C))
+  bk.icon.cv <- sapply(bk.icon.cos, function(C) var(c(C)))
+  bk.svd <- lapply(bk.icon.cos, function(C) svd(C, nu=0, nv=0)$d)
+  bk.icon.cond <- sapply(bk.svd, function(Cd) Cd[1]/Cd[length(Cd)])  # this works well if you take the geomean w. variance.
+  bk.icon.condn <- sapply(bk.svd, function(Cd) norm(Cd, "2"))  # variance of singular values
+  ss.which <- sapply(swl, function(S) paste(S, collapse=", "))
+  bk.inconsistency <- data.frame(icon=bk.icon.idx,
+                                 cm=bk.icon.cm,
+                                 cv=bk.icon.cv,
+                                 cond=bk.icon.cond,
+                                 condn=bk.icon.condn,
+                                 ss=ss.which)
+  return(bk.inconsistency)
+}
+
+# XXX: that's really inefficient, do this instead
+k.inconsistency.2 <- function(wl.ps, k) {
+  # get all of the cross-subspace cosine matrices including the self cosine for each k-subspace of wl
+  swl <- do.call(cbind, wl.ps[which(lapply(wl.ps, length) == k)])
+  swl.q <- ncol(swl)
+  Cmx <- lapply(1:swl.q, function(i) lapply(1:swl.q, function(j) ss.cos(embed.m, swl[,i], swl[,j])))
+  
+  # the {k,q}-index of inconsistency is the number of subsets not maximally self-similar
+  C.mix <- sapply(1:swl.q, function(i) which.max(sapply(Cmx[[i]], function(C) mean(C))))
+  C.max <- sapply(1:swl.q, function(i) max(sapply(Cmx[[i]], function(C) mean(C))))
+  icon <- length(which(!C.mix == 1:swl.q))
+  
+  # also get the self summary statistics
+  self.m <- sapply(1:swl.q, function(i) mean(Cmx[[i]][[i]]))
+  self.v <- sapply(1:swl.q, function(i) var(c(Cmx[[i]][[i]])))
+  cond <- sapply(1:swl.q, function(i) {
+    Cd <- svd(Cmx[[i]][[i]], nu=0, nv=0)$d
+    return(Cd[1]/Cd[k])
+  })
+  inconsistency <- data.frame(ss.k=k, ss.idx=1:swl.q,
+                              C.max, C.mix, icon,
+                              cond, self.m, self.v) %>%
+    rowwise() %>%
+    mutate(consistent=ss.idx == C.mix, vgap=C.max-self.m,
+           this.ss = paste0(subwordlists(wl.ps, k)[ss.idx][[1]], collapse=", "),
+           that.ss = paste0(subwordlists(wl.ps, k)[C.mix][[1]], collapse=", ")) %>%
+    mutate(join.ss = paste0(intersect(str_split(this.ss, ", ")[[1]], str_split(that.ss, ", ")[[1]]), collapse=", "),
+           mix1.ss = ifelse(consistent, "", paste0(setdiff(str_split(this.ss, ", ")[[1]], str_split(that.ss, ", ")[[1]]), collapse=", ")),
+           mix2.ss = ifelse(consistent, "", paste0(setdiff(str_split(that.ss, ", ")[[1]], str_split(this.ss, ", ")[[1]]), collapse=", ")))
+  return(inconsistency)
+}
+
+## Plotting functions ##
+
+# helper for making the lattice heatmaps
+ggheatmap2 <- function(X, k, title, stat_title, self=F) {
+  Xa <- do.call(rbind, lapply(X, reshape2::melt))
+  Xa$ik <- rep(1:k, sapply(X, function(x) nrow(x)^2))
+  p <- NA
+  if(self) {
+    Xa %>%
+      group_by(ik, Var1) %>% mutate(this.max = value == max(value)) %>% ungroup() %>%
+      ggplot(aes(x=Var1, y=Var2, fill=value)) + 
+      geom_tile() + 
+      geom_point(aes(color=this.max), shape=15) +
+      scale_fill_viridis_c(labels=function(l) sprintf("%.1f", l)) + 
+      scale_color_manual(values=c(NA, "tomato"), ) +
+      labs(x="", y="", fill=stat_title, title=title) +
+      theme(axis.text.x = element_blank(),
+            axis.text.y = element_blank(),
+            axis.ticks.x = element_blank(),
+            axis.ticks.y = element_blank(),
+            strip.text = element_blank(),
+            title = element_text(size=14),
+            legend.position="bottom",
+            legend.key.width=unit(1, "cm"),
+            plot.margin=margin(0, 0, 0, 0, "cm")) +
+      guides(color=F,
+             fill = guide_colorbar(title.position="top",
+                                   title.theme = element_text(size=12),
+                                   label.theme = element_text(size=11))) +
+      facet_wrap(~ik, ncol=1, scales="free") ->
+      p
+  } else {
+    # no diagonality indicator
+    Xa %>%
+      group_by(ik, Var2) %>% mutate(this.max = value == max(value)) %>% ungroup() %>%
+      ggplot(aes(x=Var1, y=Var2, fill=value)) + 
+      geom_tile() + 
+      scale_fill_viridis_c(labels=function(l) sprintf("%.1f", l)) + 
+      labs(x="", y="", fill=stat_title, title=title) +
+      theme(axis.text.x = element_blank(),
+            axis.text.y = element_blank(),
+            axis.ticks.x = element_blank(),
+            axis.ticks.y = element_blank(),
+            strip.text = element_blank(),
+            title = element_text(size=14),
+            legend.position="bottom",
+            legend.key.width=unit(1, "cm"),
+            plot.margin=margin(0, 0, 0, 0, "cm")) +
+      guides(color=F,
+             fill = guide_colorbar(title.position="top",
+                                   title.theme = element_text(size=12),
+                                   label.theme = element_text(size=11))) +
+      facet_wrap(~ik, ncol=1, scales="free") ->
+      p
+  }
+  p
+}
+
+# arranges lattice heatmaps
+# gglatticemap2 <- function(K, C, title, dk, self=F) {
+#   ggarrange(ggheatmap2(K, dk, self) + ggtitle(label=paste0("Canonical subspace metric: ", title)),
+#             ggheatmap2(C, dk, self) + ggtitle(label=paste0("MCS metric: ", title)), nrow=1)
+# }
+gglatticemap3 <- function(m1, m2, m3, m4, titles, stat_title, dk, self=F, legend=T) {
+  ggstatlabel(stat_title) + 
+  (ggarrange(ggheatmap2(m1, dk, titles[1], stat_title, self),
+            ggheatmap2(m2, dk, titles[2], stat_title, self),
+            ggheatmap2(m3, dk, titles[3], stat_title, self),
+            ggheatmap2(m4, dk, titles[4], stat_title, self),
+            nrow=1, common.legend=legend, legend="bottom")) +
+  plot_layout(ncol=1, heights=c(7, 80))
+}
+
+ggstatlabel <- function(label) {
+  p <- ggplot(data.frame(l = label, x = 1, y = 1)) +
+       geom_text(aes(x, y, label = l), size=14) + 
+       theme_void() +
+       coord_cartesian(clip = "off")
+  return(p)
+}
+
+# plots the inconsistency index against condition number
+gginconsistency <- function(Mi) {
+  Mi %>% 
+    ggplot(aes(y=icon, x=cond, color=cv,)) +
+    geom_smooth(method="lm", linetype="dashed", color="black", size=1) +
+    geom_jitter(width=0, height=0.2, size=3) +
+    scale_color_viridis_c(option="plasma") +
+    labs(x="Condition number", y="Index of inconsistency", color="Variance in \nunidimensional cosines") +
+    theme(legend.position="right",
+          text=element_text(size=16),
+          aspect.ratio=1) +
+    facet_wrap(~variate, nrow=4, ncol=1)
+}
+
+gginconsistency2 <- function(Mi) {
+  Mi %>% 
+    ggplot(aes(x=ss.k, y=cond, color=consistent)) + 
+    geom_jitter(height=0, width=0.3, alpha=0.5) + 
+    geom_smooth(method="lm", linetype="dashed", se=F) + 
+    scale_color_manual(values=c("tomato", "dodgerblue")) +
+    scale_x_continuous(breaks=1:7) +
+    labs(x="# words", y="Condition number", color="Geometrically \nconsistent?") +
+    theme(legend.position="right",
+          text=element_text(size=16),
+          aspect.ratio=1) +
+    facet_wrap(~kw.label, scales="free", ncol=1, nrow=4)
+}
+
+gginconsummary <- function(Mi) {
+  Mi %>% ggplot(aes(x=ki)) + 
+    # means
+    #geom_point(aes(y=mk/ki), color="tomato") + geom_line(aes(y=mk/ki), color="tomato") + 
+    geom_point(aes(y=mk), color="tomato") + geom_line(aes(y=mk), color="tomato") + 
+    geom_point(aes(y=mc2), color="dodgerblue") + geom_line(aes(y=mc2), color="dodgerblue") +
+    
+    # ranges
+    # geom_point(aes(y=kmin/ki), color="tomato", shape=15) + 
+    # geom_line(aes(y=kmin/ki), color="tomato", linetype="dashed") +
+    geom_point(aes(y=kmin), color="tomato", shape=15) + 
+    geom_line(aes(y=kmin), color="tomato", linetype="dashed") +
+    geom_point(aes(y=cmin2), color="dodgerblue", shape=15) + 
+    geom_line(aes(y=cmin2), color="dodgerblue", linetype="dashed") +
+    # geom_point(aes(y=kmax/ki), color="tomato", shape=15) + 
+    # geom_line(aes(y=kmax/ki), color="tomato", linetype="dashed") + 
+    geom_point(aes(y=kmax), color="tomato", shape=15) + 
+    geom_line(aes(y=kmax), color="tomato", linetype="dashed") + 
+    geom_point(aes(y=cmax2), color="dodgerblue", shape=15) + 
+    geom_line(aes(y=cmax2), color="dodgerblue", linetype="dashed") + 
+    scale_x_continuous(breaks=1:7) +
+    labs(x="Dimensionality", y="Metric (red = canonical subspace; blue = mean squared cosine similarity)") + 
+    facet_wrap(~variate, ncol=1, scales="free_y")
+}
+
+# Get the top n words for column cidx
+topwords <- function(M, cidx, n) {
+  words <- M %>% slice_max(order_by=across(all_of(cidx)), n=n) %$% rn
+  return(c(words))
+}
+
+# plot observed angles against the distribution of random co-orientations sharing 0 or 1 subspace
+# vertical bars indicate 95% prediction interval; note asymmetry for point estimates near extremes.
+# purple and pink are WEAT0 and WEAT1; tomato is Krzanowki's measure
+# green errorbars are the two-way null; blue and yellow errorbars are the one-way nulls
+krz_plot <- function(krzx, title, plot.cos=F) {
+  krss.r <- krzx$krss
+  krss.r.a <- krzx$krss.a
+  krss.r.b <- krzx$krss.b
+  css.r <- krzx$css
+  css.r.a <- krzx$css.a
+  css.r.b <- krzx$css.b
+  krz.m <- krzx$krz.m
+  cos.m <- krzx$cos.m
+  ss.k <- nrow(cos.m) 
+  
+  # deprecated: label congruences by their most associated words
+  #kwords <- sapply(1:ncol(kwords), function(cl) paste0(paste0(kwords[1:4,cl], collapse=", "), "\n", paste0(kwords[5:8,cl], collapse=", ")))
+  
+  if(plot.cos) {
+    data.frame(xa=1,
+               xb=1-0.05,
+               xc=1+0.05,
+               y1=mean(cos.m),
+               y1x=mean(diag(cos.m)),
+               y2a=mean(css.r), 
+               ylla=sort(css.r)[0.05*length(css.r)], 
+               yula=sort(css.r)[0.95*length(css.r)],
+               y2b=mean(css.r.a), 
+               yllb=sort(css.r.a)[0.05*length(css.r.a)], 
+               yulb=sort(css.r.a)[0.95*length(css.r.a)],
+               y2c=mean(css.r.b), 
+               yllc=sort(css.r.b)[0.05*length(css.r.b)], 
+               yulc=sort(css.r.b)[0.95*length(css.r.b)]) %>%
+      ggplot(aes(x)) + 
+      geom_point(aes(x=xa, y=y2a), color="forestgreen", size=2, shape=15) + 
+      geom_errorbar(aes(x=xa, y=y2a, ymin=ylla, ymax=yula), color="forestgreen", width=0.01) + 
+      geom_point(aes(x=xb, y=y2b), color="goldenrod3", size=2, shape=15) + 
+      geom_errorbar(aes(x=xb, y=y2b, ymin=yllb, ymax=yulb), color="goldenrod3", width=0.01) + 
+      geom_point(aes(x=xc, y=y2c), color="dodgerblue3", size=2, shape=15) + 
+      geom_errorbar(aes(x=xc, y=y2c, ymin=yllc, ymax=yulc), color="dodgerblue3", width=0.01) + 
+      geom_hline(aes(yintercept=y1), color="magenta", linetype="dotted") +
+      geom_hline(aes(yintercept=y1x), color="magenta", linetype="dotdash") +
+      ylim(-1, 1) + scale_x_continuous(breaks=NULL) +
+      labs(x="", y="Cosine similarity")
+  } else {
+    data.frame(xa=1:ss.k,
+               xb=(1:ss.k)-0.15,
+               xc=(1:ss.k)+0.15,
+               y1=krz.m, 
+               y2a=colMeans(krss.r), 
+               ylla=apply(krss.r, 2, function(x) sort(x)[0.05*nrow(krss.r)]), 
+               yula=apply(krss.r, 2, function(x) sort(x)[0.95*nrow(krss.r)]),
+               y2b=colMeans(krss.r.a), 
+               yllb=apply(krss.r.a, 2, function(x) sort(x)[0.05*nrow(krss.r.a)]), 
+               yulb=apply(krss.r.a, 2, function(x) sort(x)[0.95*nrow(krss.r.a)]),
+               y2c=colMeans(krss.r.b), 
+               yllc=apply(krss.r.b, 2, function(x) sort(x)[0.05*nrow(krss.r.b)]), 
+               yulc=apply(krss.r.b, 2, function(x) sort(x)[0.95*nrow(krss.r.b)])) %>% 
+      ggplot(aes(x)) + 
+      geom_point(aes(x=xa, y=y2a), color="forestgreen", size=2, shape=15) + 
+      geom_errorbar(aes(x=xa, y=y2a, ymin=ylla, ymax=yula), color="forestgreen", width=0.125) + 
+      geom_point(aes(x=xb, y=y2b), color="goldenrod3", size=2, shape=15) + 
+      geom_errorbar(aes(x=xb, y=y2b, ymin=yllb, ymax=yulb), color="goldenrod3", width=0.125) + 
+      geom_point(aes(x=xc, y=y2c), color="dodgerblue3", size=2, shape=15) + 
+      geom_errorbar(aes(x=xc, y=y2c, ymin=yllc, ymax=yulc), color="dodgerblue3", width=0.125) + 
+      geom_point(aes(x=xa, y=y1), color="tomato", size=3, shape=18, alpha=0.9) + 
+      geom_hline(yintercept=mean(krz.m), linetype="dashed", color="tomato") +
+      geom_hline(yintercept=mean(c(cos.m)), linetype="dotted", color="magenta") +
+      ylim(0, 1) +
+      scale_x_continuous(breaks=seq(1,ss.k)) + #,
+                         #labels=kwords) +
+      theme(axis.text.x=element_text(size=13),
+            axis.text.y=element_text(size=13),
+            title = element_text(size=14)) +
+      labs(x="", y="", title=title)
+  }
+}
+```
+
+```{r subspace_lattices}
+# this chunk does all the heavy computing
+# by default I turn this off and load the precomputed ones in the next chunk
+# set eval=T to rerun this if you want (takes maybe 12 hours?); remember to turn off the next one
+# the one you might care to rerun is the null distributions; the combinatorial ones are deterministic.
+
+# it's useful to have the Euclidean norms laying around
+embed.m.n <- apply(embed.m, 1, norm, "2")
+
+# get all subsets with cardinality in [1, k-1]
+# load(here("data", "gender_sentiment_powersets.rds"))
+male_a_ps <- lapply(as.vector(sets::set_power(male_a))[1:(2^ss.k - 1)], as.character)
+female_a_ps <- lapply(as.vector(sets::set_power(female_a))[1:(2^ss.k - 1)], as.character)
+pleasant_b_ps <- lapply(as.vector(sets::set_power(pleasant_b))[1:(2^ss.k - 1)], as.character)
+unpleasant_b_ps <- lapply(as.vector(sets::set_power(unpleasant_b))[1:(2^ss.k - 1)], as.character)
+
+# then we can see how the measure distributes over the lattice of subspace permutations
+# load(here("data", "gender_sentiment_sublattices.rds"))
+g1.ac.k.lattice <- lapply(1:(ss.k-1), function(ki) power_krz(embed.m, male_a_ps, pleasant_b_ps, ki, "K"))
+g1.ac.c.lattice <- lapply(1:(ss.k-1), function(ki) power_krz(embed.m, male_a_ps, pleasant_b_ps, ki, "C"))
+g2.ac.k.lattice <- lapply(1:(ss.k-1), function(ki) power_krz(embed.m, male_a_ps, unpleasant_b_ps, ki, "K"))
+g2.ac.c.lattice <- lapply(1:(ss.k-1), function(ki) power_krz(embed.m, male_a_ps, unpleasant_b_ps, ki, "C"))
+g3.ac.k.lattice <- lapply(1:(ss.k-1), function(ki) power_krz(embed.m, female_a_ps, pleasant_b_ps, ki, "K"))
+g3.ac.c.lattice <- lapply(1:(ss.k-1), function(ki) power_krz(embed.m, female_a_ps, pleasant_b_ps, ki, "C"))
+g4.ac.k.lattice <- lapply(1:(ss.k-1), function(ki) power_krz(embed.m, female_a_ps, unpleasant_b_ps, ki, "K"))
+g4.ac.c.lattice <- lapply(1:(ss.k-1), function(ki) power_krz(embed.m, female_a_ps, unpleasant_b_ps, ki, "C"))
+
+# across summary statistics
+# load(here("data", "gender_sentiment_sublattice_summaries.rds"))
+g1.lattice.summarystats <- lattice_summary(g1.ac.c.lattice, g1.ac.k.lattice)
+g2.lattice.summarystats <- lattice_summary(g2.ac.c.lattice, g2.ac.k.lattice)
+g3.lattice.summarystats <- lattice_summary(g3.ac.c.lattice, g3.ac.k.lattice)
+g4.lattice.summarystats <- lattice_summary(g4.ac.c.lattice, g4.ac.k.lattice)
+
+# the self-similarity lattice is also really interesting
+# really *this* is what should grow; the non-self product growing is a consequence of this I think?
+# load(here("data", "gender_sentiment_self_lattices.rds"))
+gm.k.lattice <- lapply(1:(ss.k-1), function(ki) power_krz(embed.m, male_a_ps, male_a_ps, ki, "K"))
+gm.c.lattice <- lapply(1:(ss.k-1), function(ki) power_krz(embed.m, male_a_ps, male_a_ps, ki, "C"))
+gp.k.lattice <- lapply(1:(ss.k-1), function(ki) power_krz(embed.m, pleasant_b_ps, pleasant_b_ps, ki, "K"))
+gp.c.lattice <- lapply(1:(ss.k-1), function(ki) power_krz(embed.m, pleasant_b_ps, pleasant_b_ps, ki, "C"))
+gf.k.lattice <- lapply(1:(ss.k-1), function(ki) power_krz(embed.m, female_a_ps, female_a_ps, ki, "K"))
+gf.c.lattice <- lapply(1:(ss.k-1), function(ki) power_krz(embed.m, female_a_ps, female_a_ps, ki, "C"))
+gu.k.lattice <- lapply(1:(ss.k-1), function(ki) power_krz(embed.m, unpleasant_b_ps, unpleasant_b_ps, ki, "K"))
+gu.c.lattice <- lapply(1:(ss.k-1), function(ki) power_krz(embed.m, unpleasant_b_ps, unpleasant_b_ps, ki, "C"))
+
+# index of inconsistency for all 4-subsets in lists of size 8
+# we are looking at the 3-subsets of the 4-subsets of the keyword list
+# i.e. this is the q-sublattices of the k-lattice.
+# load(here("data", "gender_sentiment_inconsistency_indices.rds"))
+male_sks_breakdown <- lapply(1:7, function(kx) k.inconsistency.2(male_a_ps, kx))
+female_sks_breakdown <- lapply(1:7, function(kx) k.inconsistency.2(female_a_ps, kx))
+pleasant_sks_breakdown <- lapply(1:7, function(kx) k.inconsistency.2(pleasant_b_ps, kx))
+unpleasant_sks_breakdown <- lapply(1:7, function(kx) k.inconsistency.2(unpleasant_b_ps, kx))
+male_bk <- cbind(reduce(male_sks_breakdown, rbind), kw.label="male")
+female_bk <- cbind(reduce(female_sks_breakdown, rbind), kw.label="female")
+pleasant_bk <- cbind(reduce(pleasant_sks_breakdown, rbind), kw.label="pleasant")
+unpleasant_bk <- cbind(reduce(unpleasant_sks_breakdown, rbind), kw.label="unpleasant")
+inconsistencies <- rbind(male_bk, female_bk, pleasant_bk, unpleasant_bk)
+
+# null distributions for each comparison
+# load(here("data", "gender_sentiment_null_distributions.rds"))
+n_samples <- 1000
+g.ac <- sample_krz(embed.m, male_a, pleasant_b, n_samples)
+g.ad <- sample_krz(embed.m, male_a, unpleasant_b, n_samples)
+g.bc <- sample_krz(embed.m, female_a, pleasant_b, n_samples)
+g.bd <- sample_krz(embed.m, female_a, unpleasant_b, n_samples)
+
+# a good way of interpreting this is how predictable all of the other words are in the A|B and B|A subspaces
+# you can perhaps think of this as words you should have added to the keyword list
+mp.kd <- krz(embed.m, male_a, pleasant_b, 8, .svd=T)
+mp.m.align <- sapply(1:ss.k, function(i) sapply(1:nrow(embed.m), function(j) lsa::cosine(mp.kd$u[,i], embed.m[j,])))
+mp.p.align <- sapply(1:ss.k, function(i) sapply(1:nrow(embed.m), function(j) lsa::cosine(mp.kd$v[,i], embed.m[j,])))
+mp.m.align.n <- apply(mp.m.align, 1, norm, "2")
+mp.p.align.n <- apply(mp.p.align, 1, norm, "2")
+mp.explain <- matrix(c(mp.m.align.n, mp.p.align.n, embed.m.n), ncol=3)
+rownames(mp.explain) <- rownames(embed.m)
+
+# you can verify that the disjoint subspaces are non-intersecting using the Zassenhaus algorithm
+# the upper left k*2 x k*2 block of this matrix will have the identity matrix
+# i.e. there is no basis for an intersection subspace because it does not exist
+# pracma::rref(rbind(cbind(embed.m[male_a,], embed.m[male_a,]), cbind(embed.m[pleasant_b,], matrix(rep(0, 8*300), ncol=300, nrow=8))))
+
+# save to disk, e.g. for w2v:
+# save(male_a_ps, female_a_ps, pleasant_b_ps, unpleasant_b_ps, file=here("data", "word2vec_gender_sentiment_powersets.rds"))
+# save(g1.ac.k.lattice, g2.ac.k.lattice, g3.ac.k.lattice, g4.ac.k.lattice, g1.ac.c.lattice, g2.ac.c.lattice, g3.ac.c.lattice, g4.ac.c.lattice, file=here("data", "word2vec_gender_sentiment_sublattices.rds"))
+# save(g1.lattice.summarystats, g2.lattice.summarystats, g3.lattice.summarystats, g4.lattice.summarystats, file=here("data", "word2vec_gender_sentiment_sublattice_summaries.rds"))
+# save(gm.k.lattice, gf.k.lattice, gp.k.lattice, gu.k.lattice, gm.c.lattice, gf.c.lattice, gp.c.lattice, gu.c.lattice, file=here("data", "word2vec_gender_sentiment_self_lattices.rds"))
+# save(male_sks_breakdown_4, female_sks_breakdown_4, pleasant_sks_breakdown_4, unpleasant_sks_breakdown_4, file=here("data", "word2vec_gender_sentiment_inconsistency_indices.rds"))
+# save(g.ac, g.ad, g.bc, g.bd, file=here("data", "word2vec_gender_sentiment_null_distributions.rds"))
+```
+
+```{r load_subspace_data}
+# load precomputed data objects
+load(here("data", "gender_sentiment_powersets.rds"))
+load(here("data", "gender_sentiment_sublattices.rds"))
+load(here("data", "gender_sentiment_sublattice_summaries.rds"))
+load(here("data", "gender_sentiment_self_lattices.rds"))
+load(here("data", "gender_sentiment_inconsistency_indices.rds"))
+load(here("data", "gender_sentiment_null_distributions.rds"))
+```
+
+```{r plot_selfspace_lattices}
+ggarrange(gglatticemap3(gm.k.lattice, gf.k.lattice, gp.k.lattice, gu.k.lattice,
+                        c("male", "female", "pleasant", "unpleasant"), "Canonical subspace metric", 7, self=T),
+          gglatticemap3(gm.c.lattice, gf.c.lattice, gp.c.lattice, gu.c.lattice,
+                        c("male", "female", "pleasant", "unpleasant"), "Mean cosine similarity metric", 7, self=T)) +
+    (ggplot() + theme_void()) +
+    gginconsistency2(inconsistencies) +
+    plot_layout(ncol=3, widths=c(64, 1, 8))
+```
+
+![ ](/Users/akindel/code/cosine/figures/Fig1.png)
+
+\pagebreak
+
+```{r plot_subspace_lattices}
+# observing the entire power set lattice makes it easy to see where the common subspace is
+# we also see that the mean cosine similarity is invariant to the size of the comparison
+summary_dists <- rbind(cbind(g1.lattice.summarystats, variate="male, pleasant"),
+                       cbind(g3.lattice.summarystats, variate="female, pleasant"),
+                       cbind(g2.lattice.summarystats, variate="male, unpleasant"),
+                       cbind(g4.lattice.summarystats, variate="female, unpleasant"))
+
+ggarrange(gglatticemap3(g1.ac.k.lattice, g3.ac.k.lattice, g2.ac.k.lattice, g4.ac.k.lattice,
+                        c("male, pleasant", "female, pleasant", "male, unpleasant", "female, unpleasant"), "Canonical subspace metric", 7, legend=F),
+          gglatticemap3(g1.ac.c.lattice, g3.ac.c.lattice, g2.ac.c.lattice, g4.ac.c.lattice,
+                        c("male, pleasant", "female, pleasant", "male, unpleasant", "female, unpleasant"), "Mean cosine similarity metric", 7, legend=F),
+          ncol=2) +
+    (ggplot() + theme_void()) +
+    gginconsummary(summary_dists) +
+    plot_layout(ncol=3, widths=c(64, 1, 8))
+```
+
+![](/Users/akindel/code/cosine/figures/Fig2.png)
+
+\pagebreak
+
+```{r plot_canonical_congruences}
+p1.ag <- krz_plot(g.ac, "male, pleasant") + coord_flip()
+p1.bg <- krz_plot(g.ad, "male, unpleasant") + coord_flip()
+p1.cg <- krz_plot(g.bc, "female, pleasant") + coord_flip()
+p1.dg <- krz_plot(g.bd, "female, unpleasant") + coord_flip()
+
+yl <- ggplot(data.frame(l = "Index", x = 1, y = 1)) +
+      geom_text(aes(x, y, label = l), size=14, angle = 90) + 
+      theme_void() +
+      coord_cartesian(clip = "off")
+xl <- ggplot(data.frame(l = "Canonical congruence", x = 1, y = 1)) +
+      geom_text(aes(x, y, label = l), size=14) + 
+      theme_void() +
+      coord_cartesian(clip = "off")
+
+# yl + ((p1.ag) / (p1.bg) / (p1.cg) / (p1.dg) / xl + plot_layout(heights=c(10, 10, 10, 10, 1))) + plot_layout(widths=c(4, 50))  # horizontal layout
+yl + (((p1.ag) + (p1.bg)) / ((p1.cg) + (p1.dg)) / xl + plot_layout(heights=c(20, 20, 3))) + plot_layout(widths=c(4, 50))
+```
+
+![](/Users/akindel/code/cosine/figures/Fig3.png)
+
+## Tables
+
+### Captions
+
+#### Table 1.
+
+Reanalysis of WEAT tests comparing mean cosine similarity metric ($\text{WEAT}_{MCS}$) to canonical subspace metric ($\text{WEAT}_{CCA}$). The test score is $(\text{Sim}(A,C) + \text{Sim}(B,D)) - (\text{Sim}(B, C) + \text{Sim}(A,D))$. The values of the similarity metric components corresponding to each of the keyword list comparisons is displayed in the eight columns on the right. The ratio of the two test scores ("Ratio") tends to be larger than 1, so $\text{Sim}_{MCS}$ tends to overstate the difference in association. $\text{Sim}_{MCS}$ also does not consistently estimate the distribution of order statistics for the multidimensional word association problem: the median Spearman rank correlation coefficient ($\rho$) between the mean cross-similarities is 0.4, and the ordering is correct only for one test (WEAT10). The two metrics exhibit opposite behaviors as the minimum cardinality of the input keyword lists ($N$) increases: $\text{Sim}_{MCS}$ tends to shrink, while $\text{Sim}_{CCA}$ tends to grow.
+
+```{r weat_reanalysis}
+# Additional keyword lists
+flowers <- str_split("aster, clover, hyacinth, marigold, poppy, azalea, crocus, iris, orchid, rose, bluebell, daffodil, lilac, pansy, tulip, buttercup, daisy, lily, peony, violet, carnation, gladiolus, magnolia, petunia, zinnia", ", ", Inf, T)  # "gladiola" -> "gladiolus"
+insects <- str_split("ant, caterpillar, flea, locust, spider, bedbug, centipede, fly, maggot, tarantula, bee, cockroach, gnat, mosquito, termite, beetle, cricket, hornet, moth, wasp, blackfly, dragonfly, horsefly, roach, weevil", ", ", Inf, T) 
+pleasant_a <- str_split("caress, freedom, health, love, peace, cheer, friend, heaven, loyal, pleasure, diamond, gentle, honest, lucky, rainbow, diploma, gift, honor, miracle, sunrise, family, happy, laughter, paradise, vacation", ", ", Inf, T)
+unpleasant_a <- str_split("abuse, crash, filth, murder, sickness, accident, death, grief, poison, stink, assault, disaster, hatred, pollute, tragedy, divorce, jail, poverty, ugly, cancer, kill, rotten, vomit, agony, prison", ", ", Inf, T)
+instruments <- str_split("bagpipe, cello, guitar, lute, trombone, banjo, clarinet, harmonica, mandolin, trumpet, bassoon, drum, harp, oboe, tuba, bell, fiddle, harpsichord, piano, viola, bongo, flute, horn, saxophone, violin", ", ", Inf, T)
+weapons <- str_split("arrow, club, gun, missile, spear, ax, dagger, harpoon, pistol, sword, blade, dynamite, hatchet, rifle, tank, bomb, firearm, knife, shotgun, teargas, cannon, grenade, mace, slingshot, whip", ", ", Inf, T)  # "axe" -> "ax"
+career <- str_split("executive, management, professional, corporation, salary, office, business, career", ", ", Inf, T)
+family <- str_split("home, parents, children, family, cousins, marriage, wedding, relatives", ", ", Inf, T)
+temporary <- str_split("impermanent, unstable, variable, fleeting, short-term, brief, occasional", ", ", Inf, T)
+permanent <- str_split("stable, always, constant, persistent, chronic, prolonged, forever", ", ", Inf, T)
+math <- str_split("math, algebra, geometry, calculus, equations, computation, numbers, addition", ", ", Inf, T)
+arts <- str_split("poetry, art, dance, literature, novel, symphony, drama, sculpture", ", ", Inf, T)
+science <- str_split("science, technology, physics, chemistry, einstein, nasa, experiment, astronomy", ", ", Inf, T)  # lowercased "Einstein" and "NASA" (?)
+arts2 <- str_split("poetry, art, shakespeare, dance, literature, novel, symphony, drama", ", ", Inf, T)  # lowercased "Shakespeare"
+male_b <- str_split("brother, father, uncle, grandfather, son, he, his, him", ", ", Inf, T)
+female_b <- str_split("sister, mother, aunt, grandmother, daughter, she, hers, her", ", ", Inf, T)
+mental_illness <- str_split("sad, hopeless, gloomy, tearful, miserable, depressed", ", ", Inf, T)
+physical_illness <- str_split("sick, illness, influenza, disease, virus, cancer", ", ", Inf, T)
+male_names <- str_split(tolower("John, Paul, Mike, Kevin, Steve, Greg, Jeff, Bill"), ", ", Inf, T)  # all lowercased ("john"?)
+female_names <- str_split(tolower("Amy, Joan, Lisa, Sarah, Diana, Kate, Ann, Donna"), ", ", Inf, T)  # all lowercased
+white_names_a <- str_split(tolower("Brad, Brendan, Geoffrey, Greg, Brett, Jay, Matthew, Neil, Todd, Allison, Anne, Carrie, Emily, Jill, Kristen, Meredith, Sarah"), ", ", Inf, T)  # deleted "Laurie"
+black_names_a <- str_split(tolower("Darnell, Hakim, Jermaine, Kareem, Jamal, Leroy, Rasheed, Tremayne, Tyrone, Aisha, Ebony, Keisha, Kenya, Latonya, Latoya, Tamika, Tanisha"), ", ", Inf, T)  # deleted "Lakisha"
+young_names <- str_split(tolower("Tiffany, Michelle, Cindy, Kristy, Brad, Eric, Joey, Billy"), ", ", Inf, T)  # The female names here seem pretty outdated to me.
+old_names <- str_split(tolower("Ethel, Bernice, Gertrude, Agnes, Cecil, Wilbert, Mortimer, Edgar"), ", ", Inf, T)
+
+# dropped Bobbie-Sue and Sue-Ellen (no support)
+# dropped Chip, Jed, Crystal, Amber, Peggy, Wendy
+# to match below, needed to drop 2 more male and 4 more female names; CBN dropped these too
+# also note that dropping Amber and Crystal helps with the polysemy issue!
+white_names_b <- str_split(tolower("Adam, Harry, Josh, Roger, Alan, Frank, Ian, Justin, Ryan, Andrew, Fred, Jack, Matthew, Stephen, Brad, Greg, Paul, Todd, Brandon, Hank, Jonathan, Peter, Wilbur, Amanda, Courtney, Heather, Melanie, Sara, Katie, Meredith, Shannon, Betsy, Donna, Kristin, Nancy, Stephanie, Ellen, Lauren, Colleen, Emily, Megan, Rachel"), ", ", Inf, T)
+
+# changes are as follows:
+# delete Percell, Everol, Lashelle, Teretha, Tameisha, Lakisha, Shavonn, Tashika
+# Rasaan -> Rashaan
+# Terryl -> Terrell
+# Aiesha -> Aisha
+# Temeka -> Tamika
+# Shanise -> Shanice
+# Sharise -> Sharice
+# Lashandra -> Lashawn
+black_names_b <- str_split(tolower("Alonzo, Jamel, Lerone, Theo, Alphonse, Jerome, Leroy, Rashaan, Torrance, Darnell, Lamar, Lionel, Rashaun, Tyree, Deion, Lamont, Malik, Terrence, Tyrone, Lavon, Marcellus, Terrell, Wardell, Aisha, Nichelle, Shereen, Tamika, Ebony, Latisha, Shaniqua, Jasmine, Latonya, Shanice, Tanisha, Tia, Latoya, Sharice, Yolanda, Lashawn, Malika, Tawanda, Yvette"), ", ", Inf, T)
+
+# Principal angles and mean cosines for each analysis
+
+# WEAT 1
+flowers_pleasant_k <- krz(embed.m, flowers, pleasant_a, 25)
+insects_pleasant_k <- krz(embed.m, insects, pleasant_a, 25)
+flowers_unpleasant_k <- krz(embed.m, flowers, unpleasant_a, 25)
+insects_unpleasant_k <- krz(embed.m, insects, unpleasant_a, 25)
+flowers_pleasant_c <- ss.cos(embed.m, flowers, pleasant_a)
+insects_pleasant_c <- ss.cos(embed.m, insects, pleasant_a)
+flowers_unpleasant_c <- ss.cos(embed.m, flowers, unpleasant_a)
+insects_unpleasant_c <- ss.cos(embed.m, insects, unpleasant_a)
+weat1 <- c(mean(flowers_pleasant_c), mean(flowers_unpleasant_c), mean(insects_unpleasant_c), mean(insects_pleasant_c))
+canon1 <- c(mean(flowers_pleasant_k^2), mean(flowers_unpleasant_k^2), mean(insects_unpleasant_k^2), mean(insects_pleasant_k^2))
+
+# WEAT 2
+instruments_pleasant_k <- krz(embed.m, instruments, pleasant_a, 25)
+weapons_pleasant_k <- krz(embed.m, weapons, pleasant_a, 25)
+instruments_unpleasant_k <- krz(embed.m, instruments, unpleasant_a, 25)
+weapons_unpleasant_k <- krz(embed.m, weapons, unpleasant_a, 25)
+instruments_pleasant_c <- ss.cos(embed.m, instruments, pleasant_a)
+weapons_pleasant_c <- ss.cos(embed.m, weapons, pleasant_a)
+instruments_unpleasant_c <- ss.cos(embed.m, instruments, unpleasant_a)
+weapons_unpleasant_c <- ss.cos(embed.m, weapons, unpleasant_a)
+weat2 <- c(mean(instruments_pleasant_c), mean(instruments_unpleasant_c), mean(weapons_unpleasant_c), mean(weapons_pleasant_c))
+canon2 <- c(mean(instruments_pleasant_k^2), mean(instruments_unpleasant_k^2), mean(weapons_unpleasant_k^2), mean(weapons_pleasant_k^2))
+
+# WEAT 3
+# see above -- this one is quite troubled...
+white_names_b_pleasant_k <- krz(embed.m, white_names_b, pleasant_a, 25)
+black_names_b_pleasant_k <- krz(embed.m, black_names_b, pleasant_a, 25)
+white_names_b_unpleasant_k <- krz(embed.m, white_names_b, unpleasant_a, 25)
+black_names_b_unpleasant_k <- krz(embed.m, black_names_b, unpleasant_a, 25)
+white_names_b_pleasant_c <- ss.cos(embed.m, white_names_b, pleasant_a)
+black_names_b_pleasant_c <- ss.cos(embed.m, black_names_b, pleasant_a)
+white_names_b_unpleasant_c <- ss.cos(embed.m, white_names_b, unpleasant_a)
+black_names_b_unpleasant_c <- ss.cos(embed.m, black_names_b, unpleasant_a)
+weat3 <- c(mean(white_names_b_pleasant_c), mean(white_names_b_unpleasant_c), mean(black_names_b_unpleasant_c), mean(black_names_b_pleasant_c))
+canon3 <- c(mean(white_names_b_pleasant_k^2), mean(white_names_b_unpleasant_k^2), mean(black_names_b_unpleasant_k^2), mean(black_names_b_pleasant_k^2))
+
+# WEAT 4
+white_names_a_pleasant_a_k <- krz(embed.m, white_names_a, pleasant_a, 17)
+black_names_a_pleasant_a_k <- krz(embed.m, black_names_a, pleasant_a, 17)
+white_names_a_unpleasant_a_k <- krz(embed.m, white_names_a, unpleasant_a, 17)
+black_names_a_unpleasant_a_k <- krz(embed.m, black_names_a, unpleasant_a, 17)
+white_names_a_pleasant_a_c <- ss.cos(embed.m, white_names_a, pleasant_a)
+black_names_a_pleasant_a_c <- ss.cos(embed.m, black_names_a, pleasant_a)
+white_names_a_unpleasant_a_c <- ss.cos(embed.m, white_names_a, unpleasant_a)
+black_names_a_unpleasant_a_c <- ss.cos(embed.m, black_names_a, unpleasant_a)
+weat4 <- c(mean(white_names_a_pleasant_a_c), mean(white_names_a_unpleasant_a_c), mean(black_names_a_unpleasant_a_c), mean(black_names_a_pleasant_a_c))
+canon4 <- c(mean(white_names_a_pleasant_a_k^2), mean(white_names_a_unpleasant_a_k^2), mean(black_names_a_unpleasant_a_k^2), mean(black_names_a_pleasant_a_k^2))
+
+# WEAT 5
+white_names_a_pleasant_b_k <- krz(embed.m, white_names_a, pleasant_b, 8)
+black_names_a_pleasant_b_k <- krz(embed.m, black_names_a, pleasant_b, 8)
+white_names_a_unpleasant_b_k <- krz(embed.m, white_names_a, unpleasant_b, 8)
+black_names_a_unpleasant_b_k <- krz(embed.m, black_names_a, unpleasant_b, 8)
+white_names_a_pleasant_b_c <- ss.cos(embed.m, white_names_a, pleasant_b)
+black_names_a_pleasant_b_c <- ss.cos(embed.m, black_names_a, pleasant_b)
+white_names_a_unpleasant_b_c <- ss.cos(embed.m, white_names_a, unpleasant_b)
+black_names_a_unpleasant_b_c <- ss.cos(embed.m, black_names_a, unpleasant_b)
+weat5 <- c(mean(white_names_a_pleasant_b_c), mean(white_names_a_unpleasant_b_c), mean(black_names_a_unpleasant_b_c), mean(black_names_a_pleasant_b_c))
+canon5 <- c(mean(white_names_a_pleasant_b_k^2), mean(white_names_a_unpleasant_b_k^2), mean(black_names_a_unpleasant_b_k^2), mean(black_names_a_pleasant_b_k^2))
+
+# WEAT 6
+male_names_career_k <- krz(embed.m, male_names, career, 8)
+female_names_career_k <- krz(embed.m, female_names, career, 8)
+male_names_family_k <- krz(embed.m, male_names, family, 8)
+female_names_family_k <- krz(embed.m, female_names, family, 8)
+male_names_career_c <- ss.cos(embed.m, male_names, career)
+female_names_career_c <- ss.cos(embed.m, female_names, career)
+male_names_family_c <- ss.cos(embed.m, male_names, family)
+female_names_family_c <- ss.cos(embed.m, female_names, family)
+weat6 <- c(mean(male_names_career_c), mean(male_names_family_c), mean(female_names_family_c), mean(female_names_career_c))
+canon6 <- c(mean(male_names_career_k^2), mean(male_names_family_k^2), mean(female_names_family_k^2), mean(female_names_career_k^2))
+
+# WEAT 7
+math_male_k <- krz(embed.m, math, male_a, 8)
+arts_male_k <- krz(embed.m, arts, male_a, 8)
+math_female_k <- krz(embed.m, math, female_a, 8)
+arts_female_k <- krz(embed.m, arts, female_a, 8)
+math_male_c <- ss.cos(embed.m, math, male_a)
+arts_male_c <- ss.cos(embed.m, arts, male_a)
+math_female_c <- ss.cos(embed.m, math, female_a)
+arts_female_c <- ss.cos(embed.m, arts, female_a)
+weat7 <- c(mean(math_male_c), mean(math_female_c), mean(arts_female_c), mean(arts_male_c))
+canon7 <- c(mean(math_male_k^2), mean(math_female_k^2), mean(arts_female_k^2), mean(arts_male_k^2))
+
+# WEAT 8
+science_male_k <- krz(embed.m, science, male_b, 8)
+arts2_male_k <- krz(embed.m, arts2, male_b, 8)
+science_female_k <- krz(embed.m, science, female_b, 8)
+arts2_female_k <- krz(embed.m, arts2, female_b, 8)
+science_male_c <- ss.cos(embed.m, science, male_b)
+arts2_male_c <- ss.cos(embed.m, arts2, male_b)
+science_female_c <- ss.cos(embed.m, science, female_b)
+arts2_female_c <- ss.cos(embed.m, arts2, female_b)
+weat8 <- c(mean(science_male_c), mean(science_female_c), mean(arts2_female_c), mean(arts2_male_c))
+canon8 <- c(mean(science_male_k^2), mean(science_female_k^2), mean(arts2_female_k^2), mean(arts2_male_k^2))
+
+# WEAT 9
+mental_illness_temporary_k <- krz(embed.m, mental_illness, temporary, 7)
+physical_illness_temporary_k <- krz(embed.m, physical_illness, temporary, 7)
+mental_illness_permanent_k <- krz(embed.m, mental_illness, permanent, 7)
+physical_illness_permanent_k <- krz(embed.m, physical_illness, permanent, 7)
+mental_illness_temporary_c <- ss.cos(embed.m, mental_illness, temporary)
+physical_illness_temporary_c <- ss.cos(embed.m, physical_illness, temporary)
+mental_illness_permanent_c <- ss.cos(embed.m, mental_illness, permanent)
+physical_illness_permanent_c <- ss.cos(embed.m, physical_illness, permanent)
+weat9 <- c(mean(mental_illness_temporary_c), mean(mental_illness_permanent_c), mean(physical_illness_permanent_c), mean(physical_illness_temporary_c))
+canon9 <- c(mean(mental_illness_temporary_k^2), mean(mental_illness_permanent_k^2), mean(physical_illness_permanent_k^2), mean(physical_illness_temporary_k^2))
+
+# WEAT 10
+young_names_pleasant_b_k <- krz(embed.m, young_names, pleasant_b, 8)
+old_names_pleasant_b_k <- krz(embed.m, old_names, pleasant_b, 8)
+young_names_unpleasant_b_k <- krz(embed.m, young_names, unpleasant_b, 8)
+old_names_unpleasant_b_k <- krz(embed.m, old_names, unpleasant_b, 8)
+young_names_pleasant_b_c <- ss.cos(embed.m, young_names, pleasant_b)
+old_names_pleasant_b_c <- ss.cos(embed.m, old_names, pleasant_b)
+young_names_unpleasant_b_c <- ss.cos(embed.m, young_names, unpleasant_b)
+old_names_unpleasant_b_c <- ss.cos(embed.m, old_names, unpleasant_b)
+weat10 <- c(mean(young_names_pleasant_b_c), mean(young_names_unpleasant_b_c), mean(old_names_unpleasant_b_c), mean(old_names_pleasant_b_c))
+canon10 <- c(mean(young_names_pleasant_b_k^2), mean(young_names_unpleasant_b_k^2), mean(old_names_unpleasant_b_k^2), mean(old_names_pleasant_b_k^2))
+
+rank_correlations <- rbind(data.frame(x=weat1, y=canon1, xr=paste0(rank(weat1), collapse=", "),yr=paste0(rank(canon1), collapse=", "),
+                                      xm=sum(weat1 * c(1,-1,1,-1)), ym=sum(canon1 * c(1,-1,1,-1)), size=25,
+                                      xyc=cor(rank(weat1), rank(canon1)), xy.ed=weat1-canon1, weat=1, component=c("AC", "AD", "BD", "BC"),
+                                      labels=linebreak(c("A: flowers \nB: insects \nC: pleasant \nD: unpleasant"))),
+                           data.frame(x=weat2, y=canon2, xr=paste0(rank(weat2), collapse=", "),yr=paste0(rank(canon2), collapse=", "),
+                                      xm=sum(weat2 * c(1,-1,1,-1)), ym=sum(canon2 * c(1,-1,1,-1)), size=25,
+                                      xyc=cor(rank(weat2), rank(canon2)), xy.ed=weat2-canon2, weat=2, component=c("AC", "AD", "BD", "BC"),
+                                      labels=linebreak(c("A: instruments \nB: weapons \nC: pleasant \nD: unpleasant"))),
+                           data.frame(x=weat3, y=canon3, xr=paste0(rank(weat3), collapse=", "),yr=paste0(rank(canon3), collapse=", "),
+                                      xm=sum(weat3 * c(1,-1,1,-1)), ym=sum(canon3 * c(1,-1,1,-1)), size=25,
+                                      xyc=cor(rank(weat3), rank(canon3)), xy.ed=weat3-canon3, weat=3, component=c("AC", "AD", "BD", "BC"),
+                                      labels=linebreak(c("A: white names \nB: Black names \nC: pleasant \nD: unpleasant"))),
+                           data.frame(x=weat4, y=canon4, xr=paste0(rank(weat4), collapse=", "),yr=paste0(rank(canon4), collapse=", "),
+                                      xm=sum(weat4 * c(1,-1,1,-1)), ym=sum(canon4 * c(1,-1,1,-1)), size=17,
+                                      xyc=cor(rank(weat4), rank(canon4)), xy.ed=weat4-canon4, weat=4, component=c("AC", "AD", "BD", "BC"),
+                                      labels=linebreak(c("A: white names \nB: Black names \nC: pleasant \nD: unpleasant"))),
+                           data.frame(x=weat5, y=canon5, xr=paste0(rank(weat5), collapse=", "),yr=paste0(rank(canon5), collapse=", "),
+                                      xm=sum(weat5 * c(1,-1,1,-1)), ym=sum(canon5 * c(1,-1,1,-1)), size=8,
+                                      xyc=cor(rank(weat5), rank(canon5)), xy.ed=weat5-canon5, weat=5, component=c("AC", "AD", "BD", "BC"),
+                                      labels=linebreak(c("A: white names \nB: Black names \nC: pleasant \nD: unpleasant"))),
+                           data.frame(x=weat6, y=canon6, xr=paste0(rank(weat6), collapse=", "),yr=paste0(rank(canon6), collapse=", "),
+                                      xm=sum(weat6 * c(1,-1,1,-1)), ym=sum(canon6 * c(1,-1,1,-1)), size=8,
+                                      xyc=cor(rank(weat6), rank(canon6)), xy.ed=weat6-canon6, weat=6, component=c("AC", "AD", "BD", "BC"),
+                                      labels=linebreak(c("A: male names \nB: female names \nC: career \nD: family"))),
+                           data.frame(x=weat7, y=canon7, xr=paste0(rank(weat7), collapse=", "),yr=paste0(rank(canon7), collapse=", "),
+                                      xm=sum(weat7 * c(1,-1,1,-1)), ym=sum(canon7 * c(1,-1,1,-1)), size=8,
+                                      xyc=cor(rank(weat7), rank(canon7)), xy.ed=weat7-canon7, weat=7, component=c("AC", "AD", "BD", "BC"),
+                                      labels=linebreak(c("A: math \nB: arts \nC: male \nD: female"))),
+                           data.frame(x=weat8, y=canon8, xr=paste0(rank(weat8), collapse=", "),yr=paste0(rank(canon8), collapse=", "),
+                                      xm=sum(weat8 * c(1,-1,1,-1)), ym=sum(canon8 * c(1,-1,1,-1)), size=8,
+                                      xyc=cor(rank(weat8), rank(canon8)), xy.ed=weat8-canon8, weat=8, component=c("AC", "AD", "BD", "BC"),
+                                      labels=linebreak(c("A: science \nB: arts \nC: male \nD: female"))),
+                           data.frame(x=weat9, y=canon9, xr=paste0(rank(weat9), collapse=", "),yr=paste0(rank(canon9), collapse=", "),
+                                      xm=sum(weat9 * c(1,-1,1,-1)), ym=sum(canon9 * c(1,-1,1,-1)), size=7,
+                                      xyc=cor(rank(weat9), rank(canon9)), xy.ed=weat9-canon9, weat=9, component=c("AC", "AD", "BD", "BC"),
+                                      labels=linebreak(c("A: mental illness \nB: physical illness \nC: temporary \nD: permanent"))),
+                           data.frame(x=weat10, y=canon10, xr=paste0(rank(weat10), collapse=", "),yr=paste0(rank(canon10), collapse=", "),
+                                      xm=sum(weat10 * c(1,-1,1,-1)), ym=sum(canon10 * c(1,-1,1,-1)), size=8,
+                                      xyc=cor(rank(weat10), rank(canon10)), xy.ed=weat10-canon10, weat=10, component=c("AC", "AD", "BD", "BC"),
+                                      labels=linebreak(c("A: young names \nB: elderly names \nC: pleasant \nD: unpleasant")))) %>% mutate(xy.mr=xm/ym)
+
+rank_correlations %>%
+  select(labels, size, xm, ym, xyc, xy.mr, MCS=x, CCA=y, component) %>%
+  pivot_wider(names_from=component, values_from=c(MCS, CCA)) ->
+  rank_corr_table
+
+#save(rank_corr_table, file=here("data", "weat_summary_table.rds"))
+```
+
+```{r show_comparison, eval=T, results="asis"}
+load(here("data", "weat_summary_table.rds"))
+rownames(rank_corr_table) <- paste0("WEAT ", 1:10)
+cn <- c("Keyword lists", "N", "WEAT$_{MCS}$", "WEAT$_{CCA}$", "$\\rho$", "Ratio",
+        "A:C", "A:D", "B:D", "B:C",
+        "A:C", "A:D", "B:D", "B:C")
+knitr::kable(rank_corr_table, format="latex", digits=3, col.names=cn, escape=F, booktabs=T, linesep="\\hline", align=c("lccccccccccccc")) %>%
+  add_header_above(c(" " = 7, "Mean cosine similarity (MCS)   " = 4, "Canonical subspace metric (CCA)" = 4)) %>%
+  kable_styling(font_size=10, latex_options=c("scale_down")) %>%
+  column_spec(8, color="white", background=spec_color(unlist(rank_corr_table[,7]), end=0.8, scale_from=c(min(rank_corr_table[,7:14]), max(rank_corr_table[,7:14])))) %>%
+  column_spec(9, color="white", background=spec_color(unlist(rank_corr_table[,8]), end=0.8, scale_from=c(min(rank_corr_table[,7:14]), max(rank_corr_table[,7:14])))) %>%
+  column_spec(10, color="white", background=spec_color(unlist(rank_corr_table[,9]), end=0.8, scale_from=c(min(rank_corr_table[,7:14]), max(rank_corr_table[,7:14])))) %>%
+  column_spec(11, color="white", background=spec_color(unlist(rank_corr_table[,10]), end=0.8, scale_from=c(min(rank_corr_table[,7:14]), max(rank_corr_table[,7:14])))) %>%
+  column_spec(12, color="white", background=spec_color(unlist(rank_corr_table[,11]), end=0.8, scale_from=c(min(rank_corr_table[,7:14]), max(rank_corr_table[,7:14])))) %>%
+  column_spec(13, color="white", background=spec_color(unlist(rank_corr_table[,12]), end=0.8, scale_from=c(min(rank_corr_table[,7:14]), max(rank_corr_table[,7:14])))) %>%
+  column_spec(14, color="white", background=spec_color(unlist(rank_corr_table[,13]), end=0.8, scale_from=c(min(rank_corr_table[,7:14]), max(rank_corr_table[,7:14])))) %>%
+  column_spec(15, color="white", background=spec_color(unlist(rank_corr_table[,14]), end=0.8, scale_from=c(min(rank_corr_table[,7:14]), max(rank_corr_table[,7:14])))) %>%
+  landscape() ->
+  out
+cat(gsub('\\bNA\\b', '  ', out), sep='\n')
+```
