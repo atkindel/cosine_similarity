@@ -134,7 +134,7 @@ First, the metric must be nondecreasing in the composition of each word list as 
 
 Second, the metric must be nonincreasing with respect to *decreasing* the cardinality $k$ of each word list. Deleting relevant words from the list should monotonically decrease our certainty about the relevant set of commonalities. Removing a redundant word should make very little difference, while removing the more related words should make us less certain For example, imagine we have two word lists "juice, pie, salad, cocktail, cake" and "cherry, apple, lemon, orange, _____", and suppose a seemingly irrelevant word (e.g. "somehow" or "heteroskedastic") is added as the fifth word to the latter list. We would still agree that the main commonality between the words in the list with respect to the other list is "fruit"; the only sense in which adding a completely irrelevant word should change the metric is that if we had instead added some more relevant word (e.g. "raspberry") we would want that addition to increase the metric. This requirement reflects a surprising fact about keyword lists: including and deleting words are not symmetric operations! Given any keyword list, we could in principle include any new word, but we can only remove the words that are already there, so word inclusion and deletion do not invert one-another. This fundamental asymmetry affects how we interpret the consistency of word association quantities. Assuming a fixed list of concept-relevant words, if we include an arbitrary word, whatever quantity we use can change in either direction as $k$ increases. However, again working with a fixed list of words, removing one of the words cannot increase the quantity, unless we are removing a word that we already know is irrelevant.
 
-These two requirements can be combined formally in a general way. In the unidimensional setting, a well-known requirement for defining metrics with this property is the *minimality axiom*, which states that any object $x$ is most similar to itself [@tversky1977features]:  
+These two requirements can be combined formally in a general way. In the unidimensional setting, a well-known requirement for defining metrics that are monotonic in composition is the *minimality axiom*, which states that any object $x$ is most similar to itself [@tversky1977features]:  
 $$\forall x, y \in W: d(x, y) \geq d(x, x) = 0$$  
 However, not all word lists of equal size are uniformly *internally* associated with themselves. In the list "juice, pie, salad, cocktail, cake" the sublist "pie, cake" is more closely related to itself than "pie, salad". So, the zero-equivalence statement $d(x, x) = 0$ applies only when $k = 1$, while a multidimensional word association metric should allow $d(x, x)$ to equal any scalar as long as this is the greatest value of the metric over all of the possible comparisons to $x$. This implies a multidimensional generalization of the minimality axiom:
 $$\forall X, Y \subset W: (d(X, Y) - d(X, X)) \geq (d(X, X) - d(X, X)) = 0$$  
@@ -145,6 +145,8 @@ $$\forall i, \forall q \text{ s.t. } q < k: \arg\sup_{j} d([W]^{kCq}_i, [W]^{kCq
 Intuitively, if the researcher chooses any set of keywords, then every subset they can make by removing one or more words from the set must be more similar to itself with respect to their proposed word association metric than any of the other subsets with the same number of words.
 
 The geometric consistency property is a baseline admissibility criterion for any proposed multidimensional word association metric. A proposed metric without this property is inadmissible because it is self-contradicting as the keyword lists vary in cardinality and composition. Specifically, if some values of $d_{q}(W_X, W_Y)$ are not nondecreasing in $q$, then it cannot be geometrically consistent with respect to $W$. Define the index of inconsistency $\mathcal{I}_{q,k}(d_W(\cdot, \cdot))$ for a similarity metric over $W$ as the proportion of $q$-subsets of a keyword list of cardinality $k$ in $W$ that are most similar to themselves with respect to $d_W(\cdot, \cdot)$. A geometrically consistent metric satisfies $\mathcal{I}_{q,k}(d_W(\cdot, \cdot)) = 1$ for any choice of $q$ and $k$ up to the ambient dimensionality $p$ defined by the choice of $W$. It is particularly worrisome if the expected value of $\mathcal{I}_{q,k}$ is decreasing as $k$ increases, because adding more relevant keywords to an analysis should not make it less consistent as previously discussed. The index of inconsistency is closely related to the regularity of the $k$-simplex induced by $X$; the more regular the simplex is, the more likely it is that  A helpful heuristic discrepancy measure is the Euclidean condition number of $X$, which measures the elongation of its hyperelliptical projection [@golub2013matrix, p.88].
+
+- the metric $d_{q}(W_X, W_Y)$ between the subspaces corresponding to every $q$-subset in $\text{Pow}(X), \text{Pow}(Y)$, where $q \in [1, k_z-1]$. As we increase $k$ to the ambient dimensionality of $W$, the intersection of the orthogonal complements of $W_X$ and $W_Y$ eventually vanishes; that is, regardless of the choice of words, the two subspaces will approach one-another until they coincide exactly once we hit the number of dimensions in the vector space. If $d_{q}(W_X, W_Y)$ is geometrically consistent with respect to $W$, then this must also be true everywhere on the lattice of similarity metrics defined by $\text{Pow}(X), \text{Pow}(Y)$ as $q$ increases to $k$. Thus $d_{q}(W_X, W_Y)$ must be nondecreasing as we increase $q$.
 
 
 ### A consistent metric space for multidimensional word association
@@ -179,17 +181,48 @@ $$
 &= d^2_\text{MCS,1}(A, B).
 \end{aligned}
 $$
-Consequently, the $k = 1$ case is special in the sense that the MCS score is equivalent to a nonlinear transformation of the general word association metric. Unfortunately, this is not generally true when $k > 1$. This fact creates substantial trouble for MCS-based measurement models.
+Consequently, the $k = 1$ case is special in the sense that the MCS score is equivalent to a nonlinear transformation of the general word association metric. But this is not generally true when $k > 1$. This creates considerable inconvenience for MCS-based measurement models.
 
 
 ### MCS is not a geometrically consistent choice of word association metric
 
-We are now in a better position to understand the shortcomings of WEAT-like measurement models. The core issue is that the MCS score is not geometrically consistent, so it is an invalid association metric for multidimensional word association problems. Moreover, MCS is a biased estimator of the expected one-to-many alignment, so the estimator cannot be re-interpreted as an expectation over one of the keyword lists.
+We are now in a better position to understand the shortcomings of measurement models based on MCS scores. First consider a word association problem where one of the keyword lists contains only one word. In this limiting case, CCA reduces to multiple linear regression, and the canonical  The arithmetic mean cosine similarity of the single word with all of the words in the larger list can be viewed as a biased estimator of the coefficient of determination ($R^2$) of this model. Consider the vector space $\Theta_w$ in $\mathbb{R}^k$ formed by the cosine similarity between any word vector $w \in W$ and a set of word vectors $X$ with cardinality $k$. Let $\Theta_w(x)$ be the entry for word vector $x$. Denote the $k \times k$ inverse cosine similarity matrix of all pairs of vectors in $X$ as $S_{XX}$. By definition, $S_{XX}$ is positive definite, so we can write $R^2$ as an inner product over $\Theta_w$:  
+$$R^2(w) = \Theta^T_w S_{XX} \Theta_w = \left<\Theta_w, \Theta_w\right>_{S_{XX}}$$  
+
+What is necessary for the MCS estimator to be an unbiased estimator for one-to-many word association? As previously noted, to establish this we will not worry about the choice of scaling constant on the mean. We also will not be too concerned with the "squared" part of the coefficient of determination. Concretely, we will ignore the scaling constant $1/k$ and use the mean *squared* cosine similarity as the MCS estimator. This improves the comparability of the estimator with respect to the range of $R^2$ without changing its properties very much. If the estimator were only biased by a known multiplicative constant or monotonic functional transformation, then we could determine which data-independent adjustments we would need apply to get an unbiased estimator. The more fundamental problem is the linear operator $S_{XX}$. The amount of variation in $w$ that can be predicted in the span of $X$ depends on the correlation structure internal to $X$. If we express the bias in the one-to-many MCS estimator with respect to $R^2$, it becomes clear that MCS is unbiased up to a monotonic transformation only when $S_{XX}$ is the identity matrix:  
+$$
+\begin{aligned}
+\text{Bias}(d^\text{MCS}(w, X)) &=\sum_{x \in X}\big(\Theta_w(x)\big)^2 - \Theta_w S_{XX}\Theta_w(x) \\
+&= \sum_{x \in X}\Big(\frac{w \cdot x}{||w||_2||x||_2}\Big)^2 - \sum_{x \in X} \Theta_w(x)S_{XX} \Theta_w(x) \\
+&= \sum_{x \in X}\Big(\frac{w \cdot x}{||w||_2||x||_2}\Big)^2 - \sum_{x \in X} \frac{w \cdot x}{||w||_2||x||_2} \cdot S_{XX} \cdot \frac{w \cdot x}{||w||_2||x||_2} \\
+&= \sum_{x \in X}\Big(\frac{w \cdot x}{||w||_2||x||_2} \frac{w \cdot x}{||w||_2||x||_2}\Big) - \sum_{x \in X}\Big(\frac{w \cdot x}{||w||_2||x||_2} S_{XX}  \frac{w \cdot x}{||w||_2||x||_2}\Big)
+\end{aligned}
+$$  
+Consequently, the MCS quantity is valid only under a very restrictive assumption about $X$: the vectors in $X$ must be completely orthogonal to one-another.
+
+Finally, to generalize this setup to the many-to-many word association problem setting, consider the cross-cosine matrices $\Theta_{Y|X}, \Theta_{X|Y}$ (note $\Theta_{X|Y} = \Theta^T_{Y|X}$) and the inverse cosine matrices $S_{YY}, S_{XX}$. The diagonal entries of the matrix products $\Theta^T_{Y|X} S_{XX} \Theta_{Y|X}$ and $\Theta^T_{X|Y} S_{YY} \Theta_{X|Y}$ are equivalent to the multiple $R^2$ estimates for all of the one-to-many comparisons from (respectively) $y \in Y$ to $X$ and $x \in X$ to $Y$. Analogously, the off-diagonal entries are the cosine similarities between (say) each vector $y_i$ and the projection of $y_j$ onto the span of $X$.
+
+TODO: get from above to the CCA estimator!
+
+The canonical congruences are the singular values of $S^{1/2}_{YY} \Theta_{X|Y} S_{XX} \Theta_{Y|X} S^{1/2}_{YY}$ and the canonical subspace metric is $\text{tr}(S^{1/2}_{YY} \Theta_{X|Y} S_{XX} \Theta_{Y|X} S^{1/2}_{YY})$.
+
+This provides a closed form expression for the bias of MCS estimators for many-to-many word association problems:
+$$
+\begin{aligned}
+\text{Bias}(d^\text{MCS}(w, X)) &=\sum_{x \in X}\big(\Theta_w(x)\big)^2 -  \text{tr}(S^{1/2}_{YY} \Theta_{X|Y} S^{1/2}_{XX} S^{1/2}_{XX} \Theta_{Y|X} S^{1/2}_{YY})
+\end{aligned}
+$$
+
+MCS is biased away from the geometrically consistent quantity in proportion to the pairwise distances among the two inverse cosine matrices and the identity matrix. The geodesic distance between $S_{YY}$ and $S_{XX}$ is equal to $||\text{Log}(S^{-1}_{YY}S_{XX})||_F$ and the geodesic distance from the identity matrix is $||\text{Log}(S_{XX})||_F$, where $\text{Log}(M)$ denotes the matrix logarithm of M (CITE Lang 1999 differential geometry p. 321; Moakher and Batchelor 2005).
+
+we consider the *area* enclosed by the geodesics between the two inverse cosine matrices and the identity matrix with respect to the Lie group of PSD matrices closed under the logarithmic product (CITE Arsigny et al. 2009 SIAM).
+
+
+This helps to clarify why MCS estimators are fundamentally dependent on the particular choice of keyword list. The entries of the cosine matrix are preserved if vectors are added or removed from $X$ except for the entries directly computed from that vector. This makes it somewhat surprising that the relationship between the MCS score and the canonical subspace metric is so dependent on the choice of keywords. However, the *inverse* of the cosine matrix does not have this property; if we add or remove a vector from $X$, the entries of $S_{XX}$ change (CITE Raveh 1985 inverse correlation). Consequently, if we are running an MCS-type analysis and we examine the cosine matrix under keyword additions or deletions, we will not observe the relevant changes to the correlation structure.
+
 
 
 #### MCS is geometrically inconsistent for multidimensional word association problems.
-
-Denote the subspaces of $\mathcal{R}(W)$ spanned by $X, Y$ as $W_X, W_Y$. Denote the power sets of $X, Y$ as $\text{Pow}(X), \text{Pow}(Y)$. Define the metric $d_{q}(W_X, W_Y)$ between the subspaces corresponding to every $q$-subset in $\text{Pow}(X), \text{Pow}(Y)$, where $q \in [1, k_z-1]$. As we increase $k$ to the ambient dimensionality of $W$, the intersection of the orthogonal complements of $W_X$ and $W_Y$ eventually vanishes; that is, regardless of the choice of words, the two subspaces will approach one-another until they coincide exactly once we hit the number of dimensions in the vector space. If $d_{q}(W_X, W_Y)$ is geometrically consistent with respect to $W$, then this must also be true everywhere on the lattice of similarity metrics defined by $\text{Pow}(X), \text{Pow}(Y)$ as $q$ increases to $k$. Thus $d_{q}(W_X, W_Y)$ must be nondecreasing as we increase $q$.
 
 To see the inconsistency concretely, consider the $k$-simplex with edges corresponding to the pairwise Euclidean differences between a set of vectors indexed by any keyword list $X$. This $k$-simplex is bounded by a lattice of $q$-simplical subspaces formed by subsets of $X$ ($q \in [1, k-1], q \in \mathbb{Z}$). An admissible similarity metric must satisfy the minimality inequality with respect to all of the $q$-simplices of equal dimensionality. 
 
@@ -199,34 +232,12 @@ TODO: DRAW THAT
 
 The origin of the problem with this quantity lies in the fact that the unidimensional quantity $\cos(w_i, w_j)$ is not a metric with respect to the vector space $\mathfrak{W}$ spanned by the input word vectors $W$. In general it is not non-negative for all word pairs $i, j$, and for any three words $i, j, k$ it does not satisfy the triangle inequality $\cos(w_i, w_j) \leq \cos(w_i, w_k) + \cos(w_j, w_k)$. A formal way to say this is to say that the $\{\mathfrak{W}, \cos\}$ is not a metric space.
 
-#### MCS is a biased estimator of the expected one-to-many word association.
-
-For our purposes, the most important consequence of this fact is that the usual family of means does not apply to $\{\mathfrak{W}, \cos\}$! The Frechet mean for a metric space $\{\mathfrak{X}, d\}$ is the set of vectors in $\mathfrak{X}$ that minimizes the sum of the squared metric $d$ with respect to every $x \in \mathfrak{X}$. All of the familiar means (arithmetic, geometric, etc.) are Frechet means with respect to a metric. Unfortunately, if the "metric" we have selected is $\cos(w_i, w_j)$, then none of these means correspond to the expected association of pairs of vectors in $W$ unless we are willing to restrict our attention to a certain subset of $W$.
-
-In order to correctly average this quantity we need to take this integral with respect to spherically uniform measure
-
-Arithmetic mean cosine similarity can be consistently interpreted as an estimator of the expected association between any two words in the input keyword lists only if one of the keyword lists contains only one word. If that condition holds, then the underlying set of angles can be interpreted as central angle parameters for the subgroup of orthogonal rotations that move the fixed vector onto the spans of the vectors in the other list [@moakher2002means]. However, if both keyword lists have more than one word, then the Euclidean arithmetic mean cosine is a biased estimator of the mean rotation. The bias is proportional to the difference between the number of vectors in the analysis and the square root of the determinant of the arithmetic sum of the corresponding rotation matrices:
-
-TODO: Bias from Moakher 2002
-
-Additionally, even if we do this, adding words to the inducing keyword lists still causes MCS to decrease as $k$ increases. This is because as $k$ approaches $p$, MCS converges in probability to the expected cosine between two vectors in $\mathbb{R}^p$ irrespective of the specific choice of input subspaces and basis dimensionality. This is the opposite of what we want the metric to do. As previously mentioned, if the word list is converging to a specific concept, we should gain *more information* about what we mean by adding to the word list, and not less. Consequently, even if the word association estimand were redefined to be the expected unidimensional word association between two sets of words, MCS is *also* a biased estimator for this quantity. $\mathbb{E}_{A,B}[\text{tr}(\mathcal{P}(w_a)\mathcal{P}(w_b))]$.
 
 
 
-First note that $\mathbb{E}_{A,B}[\text{tr}(\mathcal{P}(w_a)\mathcal{P}(w_b))] = k^{-1}\text{tr}(\mathcal{P}(w_a)\mathcal{P}(w_b))$, yielding the following expression for the bias of the estimator:  
-$$
-\begin{aligned}
-\text{Bias}(d^\text{MCS}(A, B)) &= \mathbb{E}\Big[\frac{1}{k}\sum_{a \in A}\sum_{b \in B}\sqrt{\text{tr}(\mathcal{P}(w_a)\mathcal{P}(w_b))}\Big] - \frac{1}{k}\text{tr}(\mathcal{P}(w_a)\mathcal{P}(w_b)) \\
-&= \mathbb{E}\Big[\sum_{a \in A}\sum_{b \in B}\sqrt{\text{tr}(\mathcal{P}(w_a)\mathcal{P}(w_b))}\Big] - \text{tr}(\mathcal{P}(w_a)\mathcal{P}(w_b)) \\
-&= \sum_{a \in A}\sum_{b \in B}\Big(\mathbb{E}\Big[\sqrt{\text{tr}(\mathcal{P}(w_a)\mathcal{P}(w_b))}\Big]\Big) - \text{tr}(\mathcal{P}(w_a)\mathcal{P}(w_b))
-\\
-&= \sum_{a \in A}\sum_{b \in B}\Big(\mathbb{E}\Big[\frac{w_a^Tw_b}{||w_a||_2||w_b||_2}\Big]\Big) - \text{tr}(\mathcal{P}(w_a)\mathcal{P}(w_b))
-\end{aligned}
-$$
-Note that the bias here is expressed with respect to the original WEAT score component function, which summarizes the cosine matrix with the arithmetic mean in one direction and the arithmetic *sum* in the other direction rather than taking the arithmetic grand mean. Although the arithmetic grand mean is used more frequently in subsequent applications, it is more informative to consider the bias in the estimator due to the linear dependence internal to $A$ and $B$, and we can temporarily overlook the bias due to the extra $1/k$ scaling factor in the MCS estimator. Conversely, if the estimator were only off by a multiplicative factor, it would be simple enough to just multiply it by this factor. Unfortunately, the bias is more complex than this.
+- For our purposes, the most important consequence of this fact is that the usual family of means does not apply to $\{\mathfrak{W}, \cos\}$! The Frechet mean for a metric space $\{\mathfrak{X}, d\}$ is the set of vectors in $\mathfrak{X}$ that minimizes the sum of the squared metric $d$ with respect to every $x \in \mathfrak{X}$. All of the familiar means (arithmetic, geometric, etc.) are Frechet means with respect to a metric. Unfortunately, if the "metric" we have selected is $\cos(w_i, w_j)$, then none of these means correspond to the expected association of pairs of vectors in $W$ unless we are willing to restrict our attention to a certain subset of $W$.
 
-As previously noted, when $k = 1$ we can simply square the MCS estimator to correct the bias.
-
+- If that condition holds, then the underlying set of angles can be interpreted as central angle parameters for the subgroup of orthogonal rotations that move the fixed vector onto the spans of the vectors in the other list [@moakher2002means]. However, if both keyword lists have more than one word, then the Euclidean arithmetic mean cosine is a biased estimator of the mean rotation. The bias is proportional to the difference between the number of vectors in the analysis and the square root of the determinant of the arithmetic sum of the corresponding rotation matrices:
 
 
 ## Impact on word embedding applications: Two examples
